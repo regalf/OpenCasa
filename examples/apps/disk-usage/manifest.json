@@ -1,0 +1,10 @@
+{
+  "name": "Disk Usage",
+  "description": "Show disk usage for all mounted filesystems",
+  "version": "1.0.0",
+  "author": "OpenCasa",
+  "entry": "app.py",
+  "type": "tool",
+  "autostart": false,
+  "permissions": ["system:monitor"]
+}

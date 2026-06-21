@@ -1,0 +1,10 @@
+{
+  "name": "System Monitor",
+  "description": "Real-time CPU and memory usage",
+  "version": "1.0.0",
+  "author": "OpenCasa",
+  "entry": "app.py",
+  "type": "widget",
+  "autostart": false,
+  "permissions": ["system:monitor"]
+}

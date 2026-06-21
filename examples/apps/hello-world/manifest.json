@@ -1,0 +1,10 @@
+{
+  "name": "Hello World",
+  "description": "Simple demo app that prints system info",
+  "version": "1.0.0",
+  "author": "OpenCasa",
+  "entry": "app.py",
+  "type": "tool",
+  "autostart": false,
+  "permissions": ["system:monitor"]
+}

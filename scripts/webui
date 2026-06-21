@@ -1,0 +1,18 @@
+#!/bin/ksh
+#
+# $OpenBSD: webui,v 1.0 2026/06/20
+#
+# rc script for webui dashboard daemon
+# Put in /etc/rc.d/webui and chmod +x
+
+daemon="/usr/local/bin/python3"
+daemon_flags="/usr/local/webui/webui.py -c /etc/opencasa.json -d /usr/local/webui"
+daemon_user="root"
+daemon_timeout=30
+rc_pidfile="/var/run/webui.pid"
+
+. /etc/rc.d/rc.subr
+
+rc_reload=NO
+
+rc_cmd $1

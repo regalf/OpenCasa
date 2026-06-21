@@ -1,0 +1,20 @@
+[
+  {
+    "id": "minio",
+    "name": "MinIO S3",
+    "icon": "data:image/svg+xml,...",
+    "port": 9000,
+    "protocol": "http",
+    "proxied_path": "/app/minio",
+    "command": "/usr/local/bin/minio server /data",
+    "enabled": true,
+    "status": "stopped",
+    "pid": 0,
+    "autostart": false,
+    "chroot": false,
+    "chroot_path": "",
+    "description": "Object storage compatibile S3",
+    "created_at": "2026-06-20T10:00:00Z",
+    "last_seen": "2026-06-20T10:00:00Z"
+  }
+]

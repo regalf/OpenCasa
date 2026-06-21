@@ -1,0 +1,11 @@
+{
+  "name": "Hello Web",
+  "description": "Minimal web app to test the app tab feature",
+  "version": "1.0.0",
+  "author": "OpenCasa",
+  "entry": "app.py",
+  "type": "web",
+  "port": 18998,
+  "autostart": false,
+  "permissions": []
+}

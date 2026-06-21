@@ -1,0 +1,11 @@
+{
+  "name": "Calendar",
+  "description": "Date, time, and monthly calendar — web app with dashboard widget",
+  "version": "1.0.0",
+  "author": "OpenCasa",
+  "entry": "app.py",
+  "type": "web",
+  "port": 18997,
+  "autostart": false,
+  "permissions": []
+}
