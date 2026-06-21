@@ -156,6 +156,7 @@ def _set_password_via_pty(user, password):
     sent = 0
     buf = b''
     deadline = time.time() + 15
+    ok = False
 
     try:
         while time.time() < deadline:
@@ -177,27 +178,39 @@ def _set_password_via_pty(user, password):
                     os.write(fd, (password + '\n').encode())
                     sent = 2
                     buf = b''
-                elif sent == 2 and b'password' in low:
-                    # Might need a third prompt on some systems
-                    pass
-            else:
-                # Check if child exited
+            # Check if child exited (non-blocking)
+            try:
+                pid2, status = os.waitpid(pid, os.WNOHANG)
+                if pid2:
+                    if os.WIFEXITED(status):
+                        ok = os.WEXITSTATUS(status) == 0
+                    break
+            except OSError:
+                break
+
+        # If child still running after password sent, give it 2s to process
+        if not ok:
+            for _ in range(20):
                 try:
                     pid2, status = os.waitpid(pid, os.WNOHANG)
                     if pid2:
                         if os.WIFEXITED(status):
-                            return os.WEXITSTATUS(status) == 0
-                        return False
+                            ok = os.WEXITSTATUS(status) == 0
+                        break
                 except OSError:
                     break
-                if sent >= 1:
-                    break  # Child might have exited without detection
+                time.sleep(0.1)
+            else:
+                # Child still alive — kill it
+                try:
+                    os.kill(pid, signal.SIGTERM)
+                    time.sleep(0.3)
+                    os.kill(pid, signal.SIGKILL)
+                except OSError:
+                    pass
+                os.waitpid(pid, os.WNOHANG)
 
-        # Final wait
-        _, status = os.waitpid(pid, 0)
-        if os.WIFEXITED(status):
-            return os.WEXITSTATUS(status) == 0
-        return False
+        return ok
     except:
         try:
             os.kill(pid, signal.SIGKILL)
