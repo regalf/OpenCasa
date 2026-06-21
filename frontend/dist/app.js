@@ -902,6 +902,8 @@ loadLocale('en').then(fetchAll);
 window.login = login;
 window.logout = logout;
 window.navigate = navigate;
+window.navigateApp = navigateApp;
+window.toggleSidebar = toggleSidebar;
 window.enterDir = enterDir;
 window.goUp = goUp;
 window.openFile = openFile;
