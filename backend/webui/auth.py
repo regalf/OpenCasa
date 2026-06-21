@@ -126,12 +126,18 @@ def user_count():
 def authenticate(config, username, password):
     """Returns dict with username and is_root, or None on failure."""
     # Check root user (from config file)
-    root_user = config.get("auth", {}).get("root_user", "root")
+    auth_cfg = config.get("auth", {})
+    root_user = auth_cfg.get("root_user", "root")
     if username == root_user:
-        root_pass = config.get("auth", {}).get("root_password", "")
+        root_pass = auth_cfg.get("root_password", "")
         if root_pass and (root_pass == password or verify_password(password, root_pass)):
             return {"username": username, "is_root": True}
-        return None
+
+    # Backward compat: also check old auth.username/auth.password as root
+    old_user = auth_cfg.get("username")
+    old_pass = auth_cfg.get("password")
+    if old_user and username == old_user and old_pass == password:
+        return {"username": username, "is_root": True}
 
     # Check DB users
     from . import database as dbmod
