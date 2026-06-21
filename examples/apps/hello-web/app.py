@@ -5,6 +5,10 @@ from datetime import datetime
 HOST = '127.0.0.1'
 PORT = 18998
 
+import os, json
+_ctx = json.loads(os.environ.get('OPENCASA_CONTEXT', '{}'))
+APP_BASE = '/app/' + _ctx.get('app_id', '') if _ctx.get('app_id') else ''
+
 PAGE = r"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -52,19 +56,20 @@ input{background:#0f172a;border:1px solid #334155;color:#e2e8f0;padding:.4rem .6
 </div>
 
 <script>
+const BASE = '""" + APP_BASE + r"""';
 async function inc(){
-  const r=await fetch('/api/counter',{method:'POST'});
+  const r=await fetch(BASE+'/api/counter',{method:'POST'});
   const d=await r.json();
   document.getElementById('counter').textContent=d.value;
 }
 async function sendMsg(){
   const val=document.getElementById('msgInput').value;
-  const r=await fetch('/api/echo',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({msg:val})});
+  const r=await fetch(BASE+'/api/echo',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({msg:val})});
   const d=await r.json();
   document.getElementById('msg').textContent='You said: '+d.echo+' (length: '+d.len+')';
 }
 async function loadInfo(){
-  const r=await fetch('/api/info');
+  const r=await fetch(BASE+'/api/info');
   const d=await r.json();
   const html= Object.entries(d).map(([k,v])=>'<div class="row"><span class="lbl">'+esc(k)+'</span><span>'+esc(v)+'</span></div>').join('');
   document.getElementById('info').innerHTML=html;
