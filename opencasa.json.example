@@ -35,5 +35,7 @@
     "language": "en"
   },
   "apps_dir": "/usr/local/webui/apps",
+  "app_user": "opencasa",
+  "app_password": "",
   "master_key": ""
 }

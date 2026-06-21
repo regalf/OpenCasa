@@ -34,6 +34,8 @@ DEFAULT_CONFIG = {
     "ui": {"memory_unit": "GB"},
     "log": {"level": "info", "file": "/var/log/webui.log"},
     "apps_autostart": True,
+    "app_user": "opencasa",
+    "app_password": "",
 }
 
 config = dict(DEFAULT_CONFIG)
@@ -458,7 +460,7 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
                 parts = rest.split("/", 1)
                 app_id = parts[0]
                 action = parts[1] if len(parts) > 1 else ""
-                from .appmanager import run_app, start_web_app, stop_web_app, uninstall_app
+                from .appmanager import run_app, start_web_app, stop_web_app, uninstall_app, get_app
                 if action == "run":
                     return self._send_json(run_app(app_id))
                 if action == "start":
@@ -467,6 +469,13 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
                     return self._send_json(stop_web_app(app_id))
                 if action == "uninstall":
                     return self._send_json(uninstall_app(app_id))
+                if action == "confirm":
+                    from .appmanager import confirm_app
+                    app_obj = get_app(app_id)
+                    if not app_obj:
+                        return self._send_error(404, "app not found")
+                    confirm_app(app_id, app_obj["permissions"])
+                    return self._send_json({"success": True})
 
         if path == "/api/v1/notify":
             from .notifications import push_notification
@@ -556,6 +565,10 @@ def main():
     set_data_dir(args.data)
     os.makedirs(DATA_DIR, exist_ok=True)
     os.makedirs(os.path.join(DATA_DIR, "apps"), exist_ok=True)
+
+    if os.geteuid() != 0:
+        logging.error("OpenCasa must be run as root — app security features require root privileges")
+        sys.exit(1)
 
     log_level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(

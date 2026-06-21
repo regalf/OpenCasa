@@ -93,6 +93,10 @@
   "apps.no_widget_data": "Ancora nessun dato — esegui prima l'app",
   "apps.starting": "Avvio in corso",
   "apps.start_timeout": "Timeout: l'app non risponde",
+  "apps.perm_title": "Permessi Richiesti",
+  "apps.perm_desc": "Questa app richiede i seguenti permessi:",
+  "apps.perm_none": "Nessun permesso speciale",
+  "apps.perm_accept": "Esegui Comunque",
 
   "cp.title": "Pannello di Controllo",
   "cp.create_user": "Crea Utente",

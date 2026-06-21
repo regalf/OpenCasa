@@ -15,6 +15,11 @@ from . import config
 logger = logging.getLogger(__name__)
 
 APPS_DIR = None
+APP_USER = None
+_APP_USER_UID = None
+_APP_USER_GID = None
+_APP_USER_HOME = None
+
 _cache = []
 _cache_lock = threading.Lock()
 _running = {}
@@ -26,14 +31,84 @@ _WIDGET_INTERVAL = 10
 
 
 def init():
-    global APPS_DIR
+    global APPS_DIR, APP_USER
     import sys
     pkg = sys.modules.get('.'.join(__name__.split('.')[:-1]))
     data_dir = getattr(pkg, 'DATA_DIR', '/usr/local/webui') if pkg else '/usr/local/webui'
     APPS_DIR = config.get('apps_dir') or os.path.join(data_dir, 'apps')
     os.makedirs(APPS_DIR, exist_ok=True)
+    APP_USER = config.get('app_user', 'opencasa')
+    _ensure_app_user()
     scan_all()
     _autostart_web_apps()
+
+
+def _ensure_app_user():
+    global _APP_USER_UID, _APP_USER_GID, _APP_USER_HOME
+    import pwd
+    new_user = False
+    try:
+        pw = pwd.getpwnam(APP_USER)
+        _APP_USER_UID = pw.pw_uid
+        _APP_USER_GID = pw.pw_gid
+        _APP_USER_HOME = pw.pw_dir
+        logger.debug("app user '%s' (uid=%d, home=%s)", APP_USER, _APP_USER_UID, _APP_USER_HOME)
+    except KeyError:
+        logger.info("creating app user '%s'", APP_USER)
+        r = subprocess.run(['useradd', '-m', APP_USER], capture_output=True, text=True)
+        if r.returncode != 0:
+            logger.warning("failed to create user '%s': %s", APP_USER, r.stderr.strip())
+            return
+        pw = pwd.getpwnam(APP_USER)
+        _APP_USER_UID = pw.pw_uid
+        _APP_USER_GID = pw.pw_gid
+        _APP_USER_HOME = pw.pw_dir
+        logger.info("app user '%s' created (uid=%d, home=%s)", APP_USER, _APP_USER_UID, _APP_USER_HOME)
+        new_user = True
+
+    # Set password if configured
+    app_pass = config.get('app_password', '')
+    if app_pass:
+        import sys as _sys
+        try:
+            cmd = ['chpasswd']
+            if _sys.platform.startswith('openbsd') or _sys.platform == 'openbsd':
+                cmd.append('-a')
+            p = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+            out, err = p.communicate(input=f'{APP_USER}:{app_pass}'.encode(), timeout=10)
+            if p.returncode == 0:
+                logger.info("password set for app user '%s'", APP_USER)
+            else:
+                logger.warning("failed to set password for '%s': %s", APP_USER, err.decode().strip())
+        except Exception as e:
+            logger.warning("could not set password for '%s': %s", APP_USER, e)
+
+
+def _set_resource_limits():
+    import resource
+    try:
+        resource.setrlimit(resource.RLIMIT_CPU, (30, 30))
+    except (ValueError, resource.error):
+        pass
+    try:
+        resource.setrlimit(resource.RLIMIT_AS, (256 * 1024 * 1024, 256 * 1024 * 1024))
+    except (ValueError, resource.error):
+        pass
+    nproc = getattr(resource, 'RLIMIT_NPROC', None)
+    if nproc is not None:
+        try:
+            resource.setrlimit(nproc, (10, 10))
+        except (ValueError, resource.error):
+            pass
+
+
+def _app_preexec():
+    if _APP_USER_GID is not None:
+        os.setgid(_APP_USER_GID)
+    if _APP_USER_UID is not None:
+        os.setuid(_APP_USER_UID)
+    os.setpgrp()
+    _set_resource_limits()
 
 
 def _safe_id(name):
@@ -57,7 +132,6 @@ def scan_all():
             except (json.JSONDecodeError, OSError) as e:
                 logger.warning("manifest %s: %s", entry, e)
                 continue
-            # Check if an icon file exists
             has_icon = any(os.path.isfile(os.path.join(d, f'icon.{ext}')) for ext in ('svg', 'png', 'jpg', 'jpeg', 'gif'))
             apps.append({
                 'id': entry,
@@ -123,6 +197,31 @@ def icon_path(app_id):
     return None
 
 
+# ── Permission confirmation ──
+
+def is_app_confirmed(app_id, permissions):
+    from . import database as dbmod
+    key = "_app_confirm:" + app_id
+    data = dbmod.get(key)
+    if data:
+        try:
+            confirmed = json.loads(data)
+            if confirmed.get("permissions") == permissions:
+                return True
+        except (json.JSONDecodeError, TypeError):
+            pass
+    return False
+
+
+def confirm_app(app_id, permissions):
+    from . import database as dbmod
+    key = "_app_confirm:" + app_id
+    dbmod.set(key, json.dumps({"permissions": permissions, "confirmed_at": time.time()}))
+    return True
+
+
+# ── Execution ──
+
 def run_app(app_id):
     app = get_app(app_id)
     if not app:
@@ -131,6 +230,10 @@ def run_app(app_id):
     ep = os.path.join(app['path'], app['entry'])
     if not os.path.isfile(ep):
         return {'error': f'{app["entry"]} not found'}
+
+    # Permission confirmation check
+    if not is_app_confirmed(app_id, app['permissions']):
+        return {'error': 'permission_required', 'permissions': app['permissions']}
 
     port = config.get('server', {}).get('port', 80)
     ctx = json.dumps({
@@ -143,16 +246,23 @@ def run_app(app_id):
     env = os.environ.copy()
     env['OPENCASA_CONTEXT'] = ctx
     env['OPENCASA_ACTION'] = 'widget'
+    if _APP_USER_HOME:
+        env['HOME'] = _APP_USER_HOME
 
     try:
-        p = subprocess.run(
+        proc = subprocess.Popen(
             ['python3', ep],
-            capture_output=True, text=True, timeout=30,
-            env=env, cwd=app['path'],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            text=True, env=env, cwd=app['path'],
+            preexec_fn=_app_preexec,
         )
-        result = {'stdout': p.stdout, 'stderr': p.stderr, 'returncode': p.returncode}
-    except subprocess.TimeoutExpired:
-        result = {'stdout': '', 'stderr': 'timeout (30s)', 'returncode': -1}
+        try:
+            stdout, stderr = proc.communicate(timeout=30)
+            result = {'stdout': stdout, 'stderr': stderr, 'returncode': proc.returncode}
+        except subprocess.TimeoutExpired:
+            _kill_process_group(proc.pid)
+            stdout, stderr = proc.communicate()
+            result = {'stdout': stdout, 'stderr': 'timeout (30s)', 'returncode': -1}
     except Exception as e:
         result = {'stdout': '', 'stderr': str(e), 'returncode': -1}
 
@@ -166,6 +276,18 @@ def run_app(app_id):
             pass
 
     return result
+
+
+def _kill_process_group(pid):
+    try:
+        pgid = os.getpgid(pid)
+        os.killpg(pgid, signal.SIGTERM)
+        time.sleep(0.5)
+        os.killpg(pgid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    except Exception:
+        pass
 
 
 def _add_log(app_id, result):
@@ -194,7 +316,6 @@ def get_widget_data(app_id):
         entry = _widget_cache.get(app_id)
         if entry and now - entry['ts'] < 30:
             return entry['data']
-    # Cache miss or stale — run app to generate widget data
     result = run_app(app_id)
     if result and 'error' not in result and result.get('returncode', -1) == 0:
         with _widget_lock:
@@ -216,6 +337,10 @@ def start_web_app(app_id):
     if not app['port']:
         return {'error': 'no port configured in manifest'}
 
+    # Permission confirmation check
+    if not is_app_confirmed(app_id, app['permissions']):
+        return {'error': 'permission_required', 'permissions': app['permissions']}
+
     port = config.get('server', {}).get('port', 80)
     ctx = json.dumps({
         'app_id': app['id'],
@@ -227,12 +352,15 @@ def start_web_app(app_id):
 
     env = os.environ.copy()
     env['OPENCASA_CONTEXT'] = ctx
+    if _APP_USER_HOME:
+        env['HOME'] = _APP_USER_HOME
 
     try:
         proc = subprocess.Popen(
             ['python3', ep],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             env=env, cwd=app['path'],
+            preexec_fn=_app_preexec,
         )
         pid = proc.pid
         with _cache_lock:
@@ -257,10 +385,8 @@ def stop_web_app(app_id):
             if info:
                 proc = info['proc']
                 try:
-                    proc.terminate()
-                    proc.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    proc.kill()
+                    _kill_process_group(pid)
+                    proc.wait(timeout=2)
                 except Exception:
                     pass
         app['status'] = 'stopped'

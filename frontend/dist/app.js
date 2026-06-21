@@ -267,8 +267,36 @@ function uploadFile() {
     xhr.upload.onprogress = e => {
       if (e.lengthComputable) {
         state.uploadProgress = Math.round((e.loaded / e.total) * 100);
-        render();
-      }
+  render();
+}
+
+function showPermissionConfirm(permissions, appId, onConfirm) {
+  const overlay = document.getElementById('perm-confirm-overlay');
+  if (overlay) overlay.remove();
+  const d = document.createElement('div');
+  d.id = 'perm-confirm-overlay';
+  d.className = 'form-overlay';
+  d.innerHTML = `
+    <div class="form-card">
+      <h3>${t('apps.perm_title')}</h3>
+      <p style="color:#94a3b8;font-size:.85rem;margin-bottom:.5rem">${t('apps.perm_desc')}</p>
+      <div class="perm-list" style="margin-bottom:.8rem">
+        ${(permissions.length ? permissions : [t('apps.perm_none')]).map(p => `<span class="perm-badge">${escapeHtml(p)}</span>`).join('')}
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-danger" onclick="closePermissionConfirm()">${t('apps.cancel')}</button>
+        <button class="btn btn-primary" style="flex:1" onclick="closePermissionConfirm();(window._permOnConfirm||function(){})()">${t('apps.perm_accept')}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(d);
+  window._permOnConfirm = onConfirm;
+}
+
+function closePermissionConfirm() {
+  const el = document.getElementById('perm-confirm-overlay');
+  if (el) el.remove();
+  window._permOnConfirm = null;
+}
     };
     xhr.onload = () => { state.uploadProgress = -1; loadFiles(state.filePath); };
     xhr.onerror = () => { state.uploadProgress = -1; render(); };
@@ -351,6 +379,17 @@ async function runApp(id) {
   render();
   try {
     const res = await api('POST','/apps/' + encodeURIComponent(id) + '/run');
+    if (res && res.error === 'permission_required') {
+      state.appOutputLoading = false;
+      render();
+      showPermissionConfirm(res.permissions || [], id, async () => {
+        await api('POST', '/apps/' + encodeURIComponent(id) + '/confirm');
+        state._confirmedPerms = state._confirmedPerms || {};
+        state._confirmedPerms[id] = true;
+        runApp(id);
+      });
+      return;
+    }
     state.appOutput = res;
   } catch(e) {
     state.appOutput = {error: e.message};
@@ -519,7 +558,19 @@ async function startWebAppFromTab(id) {
   render();
 
   try {
-    await api('POST', '/apps/' + encodeURIComponent(id) + '/start');
+    const res = await api('POST', '/apps/' + encodeURIComponent(id) + '/start');
+
+    if (res && res.error === 'permission_required') {
+      state.appStarting = null;
+      render();
+      showPermissionConfirm(res.permissions || [], id, async () => {
+        await api('POST', '/apps/' + encodeURIComponent(id) + '/confirm');
+        state._confirmedPerms = state._confirmedPerms || {};
+        state._confirmedPerms[id] = true;
+        startWebAppFromTab(id);
+      });
+      return;
+    }
 
     let ready = false;
     for (let i = 0; i < 30; i++) {
@@ -1112,6 +1163,7 @@ window.createDir = createDir;
 window.createFile = createFile;
 window.showAppDetail = showAppDetail;
 window.closeAppDetail = closeAppDetail;
+window.closePermissionConfirm = closePermissionConfirm;
 window.saveAppDetail = saveAppDetail;
 window.runApp = runApp;
 window.startWebApp = startWebApp;

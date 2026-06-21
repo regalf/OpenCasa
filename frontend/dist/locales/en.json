@@ -93,6 +93,10 @@
   "apps.no_widget_data": "No data yet — run the app first",
   "apps.starting": "Starting",
   "apps.start_timeout": "Timed out waiting for app to start",
+  "apps.perm_title": "Permission Required",
+  "apps.perm_desc": "This app requests the following permissions:",
+  "apps.perm_none": "No special permissions",
+  "apps.perm_accept": "Run Anyway",
 
   "cp.title": "Control Panel",
   "cp.create_user": "Create User",
