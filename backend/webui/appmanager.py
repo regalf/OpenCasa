@@ -76,48 +76,73 @@ def _ensure_app_user():
     # Set password if configured
     app_pass = config.get('app_password', '')
     if app_pass:
-        pw_set = False
-        # 1) chpasswd (Linux)
-        if not pw_set:
-            try:
-                p = subprocess.Popen(['chpasswd'], stdin=subprocess.PIPE, stderr=subprocess.PIPE)
-                out, err = p.communicate(input=f'{APP_USER}:{app_pass}'.encode(), timeout=10)
-                if p.returncode == 0:
-                    pw_set = True
-            except (FileNotFoundError, subprocess.TimeoutExpired):
-                pass
-        # 2) openssl passwd -1 (MD5, universal) + usermod -p
-        if not pw_set:
-            for flag in ('-1', '-6'):
-                try:
-                    r = subprocess.run(
-                        ['openssl', 'passwd', flag, app_pass],
-                        capture_output=True, text=True, timeout=10,
-                    )
-                    if r.returncode == 0:
-                        hashed = r.stdout.strip()
-                        for cmd in (['usermod', '-p', hashed, APP_USER],
-                                    ['pw', 'usermod', '-n', APP_USER, '-p', hashed],
-                                    ['chpass', '-a', hashed, APP_USER]):
-                            try:
-                                r2 = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
-                                if r2.returncode == 0:
-                                    pw_set = True
-                                    break
-                            except (FileNotFoundError, subprocess.TimeoutExpired):
-                                continue
-                        if pw_set:
-                            break
-                except (FileNotFoundError, subprocess.TimeoutExpired):
-                    continue
-        if pw_set:
-            logger.info("password set for app user '%s'", APP_USER)
-        else:
-            logger.warning("could not set password for '%s'", APP_USER)
+        pw_set = _set_app_password(app_pass)
 
     # Warn if default password is unchanged
     if app_pass == "123456":
         logger.warning("DEFAULT PASSWORD for app user '%s' is '123456' — CHANGE IT in opencasa.json (app_password)", APP_USER)
+
+
+def _set_app_password(password):
+    """Set password for APP_USER by trying multiple methods."""
+    user = APP_USER
+    # 1) chpasswd (Linux: echo 'user:pass' | chpasswd)
+    try:
+        p = subprocess.Popen(['chpasswd'], stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+        out, err = p.communicate(input=f'{user}:{password}'.encode(), timeout=10)
+        if p.returncode == 0:
+            logger.info("password set for '%s' via chpasswd", user)
+            return True
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+
+    # 2) Generate hash via openssl, then try usermod/chpass/pw
+    for flag in ('-1', '-6'):
+        try:
+            r = subprocess.run(['openssl', 'passwd', flag, password],
+                               capture_output=True, text=True, timeout=10)
+            if r.returncode != 0:
+                continue
+            hashed = r.stdout.strip()
+            for cmd in (['usermod', '-p', hashed, user],
+                        ['pw', 'usermod', '-n', user, '-p', hashed],
+                        ['chpass', '-a', hashed, user]):
+                try:
+                    r2 = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+                    if r2.returncode == 0:
+                        logger.info("password set for '%s' via %s", user, cmd[0])
+                        return True
+                except (FileNotFoundError, subprocess.TimeoutExpired):
+                    continue
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            continue
+
+    # 3) Build full master.passwd entry and pipe to chpass (OpenBSD)
+    try:
+        import pwd
+        pw = pwd.getpwnam(user)
+        for flag in ('-1', '-6'):
+            r = subprocess.run(['openssl', 'passwd', flag, password],
+                               capture_output=True, text=True, timeout=10)
+            if r.returncode == 0:
+                hashed = r.stdout.strip()
+                break
+        else:
+            logger.warning("could not hash password for '%s'", user)
+            return False
+        # Build master.passwd line
+        pw_class = getattr(pw, 'pw_class', '')
+        pw_expire = getattr(pw, 'pw_expire', 0)
+        entry = f"{user}:{hashed}:{pw.pw_uid}:{pw.pw_gid}:{pw_class}:0:{pw_expire}:{pw.pw_gecos}:{pw.pw_dir}:{pw.pw_shell}\n"
+        r = subprocess.run(['chpass'], input=entry.encode(), capture_output=True, timeout=10)
+        if r.returncode == 0:
+            logger.info("password set for '%s' via chpass (batch)", user)
+            return True
+    except Exception as e:
+        logger.debug("chpass batch failed: %s", e)
+
+    logger.warning("could not set password for '%s'", user)
+    return False
 
 
 def _set_resource_limits():
