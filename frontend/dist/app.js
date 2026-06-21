@@ -919,6 +919,7 @@ window.closeAppDetail = closeAppDetail;
 window.saveAppDetail = saveAppDetail;
 window.runApp = runApp;
 window.startWebApp = startWebApp;
+window.startWebAppFromTab = startWebAppFromTab;
 window.stopWebApp = stopWebApp;
 window.uninstallApp = uninstallApp;
 window.openApp = openApp;
