@@ -572,11 +572,11 @@ def main():
         config["master_key"] = base64.b64encode(os.urandom(48)).decode()
         save_config()
         logging.info("generated new master key")
-        sys.stdout.write(f"\n  ⚠  MASTER KEY (salvala in un posto sicuro):\n")
+        sys.stdout.write(f"\n  ⚠  MASTER KEY (save it in a safe place):\n")
         sys.stdout.write(f"  ┌{'─'*48}┐\n")
         sys.stdout.write(f"  │ {config['master_key']} │\n")
         sys.stdout.write(f"  └{'─'*48}┘\n")
-        sys.stdout.write(f"  Già salvata in {CONFIG_PATH}\n\n")
+        sys.stdout.write(f"  Already saved in {CONFIG_PATH}\n\n")
         sys.stdout.flush()
 
     from . import database
