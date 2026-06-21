@@ -76,52 +76,44 @@ def _ensure_app_user():
     # Set password if configured
     app_pass = config.get('app_password', '')
     if app_pass:
-        import sys as _sys
         pw_set = False
-        # Try chpasswd (Linux: echo 'user:pass' | chpasswd)
-        for cmd in (['chpasswd'], ['chpass', '-a']):
+        # 1) chpasswd (Linux)
+        if not pw_set:
             try:
-                p = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+                p = subprocess.Popen(['chpasswd'], stdin=subprocess.PIPE, stderr=subprocess.PIPE)
                 out, err = p.communicate(input=f'{APP_USER}:{app_pass}'.encode(), timeout=10)
                 if p.returncode == 0:
                     pw_set = True
-                    break
-            except (FileNotFoundError, subprocess.TimeoutExpired):
-                continue
-        if not pw_set:
-            # Fallback: try openssl to hash, then usermod -p
-            try:
-                r = subprocess.run(
-                    ['openssl', 'passwd', '-6', app_pass],
-                    capture_output=True, text=True, timeout=10,
-                )
-                if r.returncode == 0:
-                    hashed = r.stdout.strip()
-                    for cmd in (['usermod', '-p', hashed, APP_USER], ['pw', 'usermod', '-n', APP_USER, '-p', hashed]):
-                        try:
-                            r2 = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
-                            if r2.returncode == 0:
-                                pw_set = True
-                                break
-                        except (FileNotFoundError, subprocess.TimeoutExpired):
-                            continue
             except (FileNotFoundError, subprocess.TimeoutExpired):
                 pass
+        # 2) openssl passwd -1 (MD5, universal) + usermod -p
+        if not pw_set:
+            for flag in ('-1', '-6'):
+                try:
+                    r = subprocess.run(
+                        ['openssl', 'passwd', flag, app_pass],
+                        capture_output=True, text=True, timeout=10,
+                    )
+                    if r.returncode == 0:
+                        hashed = r.stdout.strip()
+                        for cmd in (['usermod', '-p', hashed, APP_USER],
+                                    ['pw', 'usermod', '-n', APP_USER, '-p', hashed],
+                                    ['chpass', '-a', hashed, APP_USER]):
+                            try:
+                                r2 = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+                                if r2.returncode == 0:
+                                    pw_set = True
+                                    break
+                            except (FileNotFoundError, subprocess.TimeoutExpired):
+                                continue
+                        if pw_set:
+                            break
+                except (FileNotFoundError, subprocess.TimeoutExpired):
+                    continue
         if pw_set:
             logger.info("password set for app user '%s'", APP_USER)
         else:
-            logger.warning("could not set password for '%s' — tried chpasswd, chpass, openssl+usermod", APP_USER)
-        if hashed:
-            for cmd in (['usermod', '-p', hashed, APP_USER], ['pw', 'usermod', '-n', APP_USER, '-p', hashed]):
-                try:
-                    r = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
-                    if r.returncode == 0:
-                        logger.info("password set for app user '%s'", APP_USER)
-                        break
-                except (FileNotFoundError, subprocess.TimeoutExpired):
-                    pass
-            else:
-                logger.warning("failed to set password for '%s' — tried usermod", APP_USER)
+            logger.warning("could not set password for '%s'", APP_USER)
 
     # Warn if default password is unchanged
     if app_pass == "123456":
