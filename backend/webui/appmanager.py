@@ -117,32 +117,94 @@ def _set_app_password(password):
         except (FileNotFoundError, subprocess.TimeoutExpired):
             continue
 
-    # 3) Build full master.passwd entry and pipe to chpass (OpenBSD)
+def _set_app_password(password):
+    """Set password for APP_USER using passwd via pty (works on Linux, OpenBSD, macOS)."""
+    user = APP_USER
+
+    # Try chpasswd (Linux) as a quick path
     try:
-        import pwd
-        pw = pwd.getpwnam(user)
-        for flag in ('-1', '-6'):
-            r = subprocess.run(['openssl', 'passwd', flag, password],
-                               capture_output=True, text=True, timeout=10)
-            if r.returncode == 0:
-                hashed = r.stdout.strip()
-                break
-        else:
-            logger.warning("could not hash password for '%s'", user)
-            return False
-        # Build master.passwd line
-        pw_class = getattr(pw, 'pw_class', '')
-        pw_expire = getattr(pw, 'pw_expire', 0)
-        entry = f"{user}:{hashed}:{pw.pw_uid}:{pw.pw_gid}:{pw_class}:0:{pw_expire}:{pw.pw_gecos}:{pw.pw_dir}:{pw.pw_shell}\n"
-        r = subprocess.run(['chpass'], input=entry.encode(), capture_output=True, timeout=10)
-        if r.returncode == 0:
-            logger.info("password set for '%s' via chpass (batch)", user)
+        p = subprocess.Popen(['chpasswd'], stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+        p.communicate(input=f'{user}:{password}'.encode(), timeout=10)
+        if p.returncode == 0:
+            logger.info("password set for '%s' via chpasswd", user)
             return True
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+
+    # Use passwd via pty (works everywhere including OpenBSD)
+    try:
+        _set_password_via_pty(user, password)
+        logger.info("password set for '%s' via passwd (pty)", user)
+        return True
     except Exception as e:
-        logger.debug("chpass batch failed: %s", e)
+        logger.debug("passwd pty failed: %s", e)
 
     logger.warning("could not set password for '%s'", user)
     return False
+
+
+def _set_password_via_pty(user, password):
+    """Drive 'passwd user' via a pseudo-terminal to set password non-interactively."""
+    import pty, os, select, time, signal
+
+    pid, fd = pty.fork()
+    if pid == 0:
+        signal.signal(signal.SIGALRM, signal.SIG_DFL)
+        os.execvp('passwd', ['passwd', user])
+        os._exit(1)
+
+    sent = 0
+    buf = b''
+    deadline = time.time() + 15
+
+    try:
+        while time.time() < deadline:
+            r, _, _ = select.select([fd], [], [], 0.3)
+            if r:
+                try:
+                    data = os.read(fd, 4096)
+                except OSError:
+                    break
+                if not data:
+                    break
+                buf += data
+                low = buf.lower()
+                if sent == 0 and (b'password:' in low or b'new password' in low or b'current' in low):
+                    os.write(fd, (password + '\n').encode())
+                    sent = 1
+                    buf = b''
+                elif sent == 1 and (b'again' in low or b're-enter' in low or b'confirm' in low):
+                    os.write(fd, (password + '\n').encode())
+                    sent = 2
+                    buf = b''
+                elif sent == 2 and b'password' in low:
+                    # Might need a third prompt on some systems
+                    pass
+            else:
+                # Check if child exited
+                try:
+                    pid2, status = os.waitpid(pid, os.WNOHANG)
+                    if pid2:
+                        if os.WIFEXITED(status):
+                            return os.WEXITSTATUS(status) == 0
+                        return False
+                except OSError:
+                    break
+                if sent >= 1:
+                    break  # Child might have exited without detection
+
+        # Final wait
+        _, status = os.waitpid(pid, 0)
+        if os.WIFEXITED(status):
+            return os.WEXITSTATUS(status) == 0
+        return False
+    except:
+        try:
+            os.kill(pid, signal.SIGKILL)
+            os.waitpid(pid, 0)
+        except:
+            pass
+        raise
 
 
 def _set_resource_limits():
