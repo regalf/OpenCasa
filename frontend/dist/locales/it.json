@@ -18,6 +18,10 @@
   "login.username": "Username",
   "login.password": "Password",
   "login.submit": "Accedi",
+  "login.next": "Avanti",
+  "login.not_you": "Non sei tu?",
+  "login.welcome_back": "Bentornato, %s",
+  "login.not_found": "Utente non trovato",
   "login.failed": "Login fallito",
   "login.unauthorized": "Non autorizzato",
 
@@ -117,5 +121,7 @@
   "account.password_placeholder": "Nuova password",
   "account.confirm_placeholder": "Conferma password",
   "account.change_password": "Cambia Password",
-  "account.password_changed": "Password cambiata"
+  "account.password_changed": "Password cambiata",
+  "account.change_avatar": "Cambia Avatar",
+  "account.avatar_too_big": "Immagine troppo grande (max 50KB)"
 }

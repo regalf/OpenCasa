@@ -47,6 +47,7 @@ body{
   border:none;border-radius:6px;font-size:1rem;cursor:pointer
 }
 .login-card button:hover{background:#0284c7}
+.login-card button:disabled{opacity:.5;cursor:default}
 .login-error{color:#f87171;margin-bottom:.5rem;font-size:.85rem;text-align:center}
 .dashboard h1{margin-bottom:.3rem}
 .sysname{color:#64748b;margin-bottom:1.5rem;font-size:.9rem}

@@ -252,10 +252,13 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/v1/auth/check":
+            from .database import get
+            avatar = get("_avatar:" + self._current_user) or ""
             return self._send_json({
                 "ok": True,
                 "user": self._current_user,
                 "is_root": self._is_root,
+                "avatar": avatar,
             })
 
         # Users list (root only)
@@ -411,6 +414,28 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
             from .proxy import handle_app_proxy
             return handle_app_proxy(self, path)
 
+        # User check (no auth required — used by login)
+        if path == "/api/v1/users/check":
+            data = self._json_body()
+            if not data or not data.get("username"):
+                return self._send_error(400, "missing username")
+            username = data["username"]
+            exists = False
+            auth_cfg = config.get("auth", {})
+            if username == auth_cfg.get("root_user", "root"):
+                exists = True
+            if not exists:
+                from .database import get
+                if get("_user:" + username):
+                    exists = True
+            avatar = ""
+            if exists:
+                from .database import get
+                av = get("_avatar:" + username)
+                if av:
+                    avatar = av
+            return self._send_json({"exists": exists, "avatar": avatar, "name": username})
+
         if not self._check_auth():
             return
 
@@ -516,12 +541,20 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
             if not self._current_user:
                 return self._send_error(401, "unauthorized")
             from .auth import create_user
-            # delete + recreate
             from .auth import delete_user
             delete_user(self._current_user)
             ok, msg = create_user(self._current_user, data["password"])
             if not ok:
                 return self._send_error(500, msg)
+            return self._send_json({"success": True})
+
+        # Upload avatar
+        if path == "/api/v1/users/avatar":
+            data = self._json_body()
+            if not data or "avatar" not in data:
+                return self._send_error(400, "missing avatar")
+            from .database import set
+            set("_avatar:" + self._current_user, data["avatar"])
             return self._send_json({"success": True})
 
         # Delete user (root only)

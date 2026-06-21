@@ -49,6 +49,9 @@ let state = {
   setupNeeded: false,
   setupLoading: false,
   users: [],
+  loginPhase: 1,
+  loginUser: '',
+  avatar: '',
 };
 
 async function api(method, path, body) {
@@ -111,8 +114,32 @@ async function doSetup() {
 
 // ── Auth ──
 
+async function checkUser() {
+  const user = document.getElementById('login-user')?.value.trim();
+  const errEl = document.getElementById('login-error');
+  if (!user) { if(errEl) errEl.textContent = ''; return; }
+  try {
+    const res = await fetch(BASE + '/users/check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: user }),
+    }).then(r => r.json());
+    if (res.exists) {
+      state.loginPhase = 2;
+      state.loginUser = res.name || user;
+      state.loginAvatar = res.avatar || '';
+      render();
+      setTimeout(() => document.getElementById('login-pass')?.focus(), 50);
+    } else {
+      if (errEl) errEl.textContent = t('login.not_found');
+    }
+  } catch(e) {
+    if (errEl) errEl.textContent = e.message;
+  }
+}
+
 async function login() {
-  const user = document.getElementById('login-user').value;
+  const user = state.loginUser;
   const pass = document.getElementById('login-pass').value;
   const errEl = document.getElementById('login-error');
   const res = await fetch(BASE + '/auth/login', {
@@ -126,7 +153,11 @@ async function login() {
     state.loggedIn = true;
     state.isRoot = res.is_root || false;
     state.username = res.user || user;
+    state.avatar = state.loginAvatar || '';
     state.error = '';
+    state.loginPhase = 1;
+    state.loginUser = '';
+    state.loginAvatar = '';
     closeSidebar();
     fetchAll(); render();
   } else {
@@ -352,12 +383,20 @@ function getAvatarColor(username) {
 function toggleAccountModal() {
   const area = document.getElementById('acc-modal-area');
   if (area.firstChild) { closeAccountModal(); return; }
+  const avatar = state.avatar || '';
+  const letter = (state.username[0] || '?').toUpperCase();
   const d = document.createElement('div');
   d.id = 'acc-modal-wrapper';
   d.innerHTML = `
     <div class="acc-overlay" onclick="if(event.target===this)closeAccountModal()">
       <div class="acc-modal" id="acc-modal">
         <h3>${escapeHtml(state.username)}</h3>
+        <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.6rem">
+          ${avatar ? `<img id="acc-avatar-preview" src="${escapeHtml(avatar)}" alt="" style="width:40px;height:40px;border-radius:50%;object-fit:cover" />`
+            : `<span id="acc-avatar-preview" style="width:40px;height:40px;border-radius:50%;background:${getAvatarColor(state.username)};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem;flex-shrink:0">${letter}</span>`}
+          <input type="file" id="acc-avatar-input" accept="image/png,image/jpeg,image/gif,image/svg+xml" style="display:none" onchange="uploadAvatar()" />
+          <button class="btn" onclick="document.getElementById('acc-avatar-input').click()">${t('account.change_avatar')}</button>
+        </div>
         <label>${t('account.new_password')}</label>
         <input id="acc-pass" type="password" placeholder="${t('account.password_placeholder')}" />
         <input id="acc-pass2" type="password" placeholder="${t('account.confirm_placeholder')}" />
@@ -395,6 +434,29 @@ async function changePassword() {
   } catch(e) {
     msg.textContent = e.message; msg.style.color = '#f87171';
   }
+}
+
+async function uploadAvatar() {
+  const input = document.getElementById('acc-avatar-input');
+  const file = input?.files?.[0];
+  if (!file) return;
+  if (file.size > 50 * 1024) { alert(t('account.avatar_too_big')); return; }
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const b64 = e.target.result;
+    try {
+      const r = await api('POST', '/users/avatar', { avatar: b64 });
+      if (r && r.success) {
+        state.avatar = b64;
+        const prev = document.getElementById('acc-avatar-preview');
+        if (prev) {
+          prev.outerHTML = `<img id="acc-avatar-preview" src="${escapeHtml(b64)}" alt="" style="width:40px;height:40px;border-radius:50%;object-fit:cover" />`;
+        }
+        render();
+      }
+    } catch(e) { state.error = e.message; render(); }
+  };
+  reader.readAsDataURL(file);
 }
 
 // ── Apps ──
@@ -803,7 +865,7 @@ function render() {
       ` : ''}
       <div class="spacer"></div>
       <button class="sidebar-user" onclick="toggleAccountModal()">
-        <span class="sidebar-user-avatar" style="background:${getAvatarColor(state.username)}">${escapeHtml(state.username[0]||'?').toUpperCase()}</span>
+        ${state.avatar ? `<img class="sidebar-user-avatar" src="${escapeHtml(state.avatar)}" alt="" />` : `<span class="sidebar-user-avatar" style="background:${getAvatarColor(state.username)}">${escapeHtml(state.username[0]||'?').toUpperCase()}</span>`}
         <span class="sidebar-user-name">${escapeHtml(state.username)}</span>
       </button>
       <div id="acc-modal-area"></div>
@@ -839,15 +901,32 @@ function renderSetup() {
 }
 
 function renderLogin() {
+  if (state.loginPhase === 1) {
+    return `
+      <div class="login-screen">
+        <div class="login-card">
+          <h1>${t('login.title')}</h1>
+          <p class="subtitle">${t('login.subtitle')}</p>
+          <input id="login-user" placeholder="${t('login.username')}" autofocus onkeydown="if(event.key==='Enter') checkUser()" />
+          <p class="login-error" id="login-error"></p>
+          <button onclick="checkUser()">${t('login.next')}</button>
+        </div>
+      </div>
+    `;
+  }
+  const avatar = state.loginAvatar || '';
+  const letter = (state.loginUser || '?')[0].toUpperCase();
   return `
     <div class="login-screen">
-      <div class="login-card">
+      <div class="login-card" style="text-align:center">
         <h1>${t('login.title')}</h1>
-        <p class="subtitle">${t('login.subtitle')}</p>
-        <input id="login-user" placeholder="${t('login.username')}" autofocus onkeydown="if(event.key==='Enter') document.getElementById('login-pass').focus()" />
-        <input id="login-pass" type="password" placeholder="${t('login.password')}" onkeydown="if(event.key==='Enter') login()" />
+        ${avatar ? `<img src="${escapeHtml(avatar)}" alt="" style="width:64px;height:64px;border-radius:50%;object-fit:cover;margin:.5rem auto;display:block" />`
+          : `<span style="width:64px;height:64px;border-radius:50%;background:${getAvatarColor(state.loginUser)};display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:700;margin:.5rem auto">${letter}</span>`}
+        <p style="color:#94a3b8;margin-bottom:1rem;font-size:.9rem">${t('login.welcome_back', state.loginUser)}</p>
+        <input id="login-pass" type="password" placeholder="${t('login.password')}" autofocus onkeydown="if(event.key==='Enter') login()" />
         <p class="login-error" id="login-error"></p>
         <button onclick="login()">${t('login.submit')}</button>
+        <p style="margin-top:.5rem"><a href="#" onclick="event.preventDefault();state.loginPhase=1;state.loginUser='';state.loginAvatar='';render()" style="color:#64748b;font-size:.85rem">${t('login.not_you')}</a></p>
       </div>
     </div>
   `;
@@ -1199,6 +1278,7 @@ loadLocale('en').then(async () => {
         const j = await c.json();
         state.isRoot = j.is_root || false;
         state.username = j.user || '';
+        state.avatar = j.avatar || '';
         state.loggedIn = true;
       } else {
         token = null; localStorage.removeItem('token');
