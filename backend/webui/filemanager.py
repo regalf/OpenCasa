@@ -6,7 +6,14 @@ import mimetypes
 import os
 import re
 
-from . import config, DATA_DIR
+from . import config, DATA_DIR, CONFIG_PATH
+
+
+def _is_blocked(path):
+    real = os.path.realpath(path)
+    if CONFIG_PATH and real == os.path.realpath(CONFIG_PATH):
+        return True
+    return False
 
 
 def _check_path(path):
@@ -17,6 +24,8 @@ def _check_path(path):
 
 def handle_list_files(handler, path):
     try:
+        if not _check_path(path):
+            return handler._send_error(403, "access denied")
         items = []
         for entry in os.scandir(path):
             try:
@@ -42,6 +51,8 @@ def handle_list_files(handler, path):
 
 
 def handle_read_file(handler, path):
+    if not _check_path(path) or _is_blocked(path):
+        return handler._send_error(403, "access denied")
     try:
         with open(path) as f:
             content = f.read()
@@ -53,6 +64,8 @@ def handle_read_file(handler, path):
 
 
 def handle_download(handler, path):
+    if not _check_path(path) or _is_blocked(path):
+        return handler._send_error(403, "access denied")
     if not os.path.isfile(path):
         return handler._send_error(404, "file not found")
     handler.send_response(200)
@@ -99,6 +112,8 @@ def handle_upload(handler, params):
             file_data = data
     if not dest_path:
         dest_path = params.get("path", filename)
+    if not _check_path(dest_path) or _is_blocked(dest_path):
+        return handler._send_error(403, "access denied")
     if not file_data:
         return handler._send_error(400, "no file data received")
     os.makedirs(os.path.dirname(dest_path) or ".", exist_ok=True)
@@ -111,6 +126,8 @@ def handle_write_file(handler):
     data = handler._json_body()
     if not data:
         return handler._send_error(400, "invalid body")
+    if not _check_path(data["path"]) or _is_blocked(data["path"]):
+        return handler._send_error(403, "access denied")
     try:
         os.makedirs(os.path.dirname(data["path"]), exist_ok=True)
         with open(data["path"], "w") as f:
@@ -124,6 +141,9 @@ def handle_rename_file(handler):
     data = handler._json_body()
     if not data:
         return handler._send_error(400, "invalid body")
+    for p in (data.get("old_path", ""), data.get("new_path", "")):
+        if not _check_path(p) or _is_blocked(p):
+            return handler._send_error(403, "access denied")
     try:
         os.rename(data["old_path"], data["new_path"])
         return handler._send_json({"success": True})
@@ -135,8 +155,10 @@ def handle_delete_file(handler):
     data = handler._json_body()
     if not data:
         return handler._send_error(400, "invalid body")
+    path_to_remove = data.get("path", "")
+    if not _check_path(path_to_remove) or _is_blocked(path_to_remove):
+        return handler._send_error(403, "access denied")
     try:
-        path_to_remove = data.get("path", "")
         if os.path.isdir(path_to_remove):
             import shutil
             shutil.rmtree(path_to_remove)
@@ -151,6 +173,8 @@ def handle_mkdir(handler):
     data = handler._json_body()
     if not data:
         return handler._send_error(400, "invalid body")
+    if not _check_path(data["path"]) or _is_blocked(data["path"]):
+        return handler._send_error(403, "access denied")
     try:
         os.makedirs(data["path"], exist_ok=True)
         return handler._send_json({"success": True})
