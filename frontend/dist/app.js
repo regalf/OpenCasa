@@ -1329,4 +1329,5 @@ window.uninstallApp = uninstallApp;
 window.openApp = openApp;
 window.createUser = createUser;
 window.deleteUser = deleteUser;
+window.checkUser = checkUser;
 })();
