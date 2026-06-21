@@ -709,9 +709,9 @@ function renderSetup() {
         <h1>${t('setup.title')}</h1>
         <p class="subtitle">${t('setup.subtitle')}</p>
         <div style="text-align:left">
-          <input id="setup-user" placeholder="${t('setup.username')}" />
-          <input id="setup-pass" type="password" placeholder="${t('setup.password')}" />
-          <input id="setup-conf" type="password" placeholder="${t('setup.confirm')}" />
+          <input id="setup-user" placeholder="${t('setup.username')}" autofocus onkeydown="if(event.key==='Enter') document.getElementById('setup-pass').focus()" />
+          <input id="setup-pass" type="password" placeholder="${t('setup.password')}" onkeydown="if(event.key==='Enter') document.getElementById('setup-conf').focus()" />
+          <input id="setup-conf" type="password" placeholder="${t('setup.confirm')}" onkeydown="if(event.key==='Enter') doSetup()" />
         </div>
         <p class="login-error" id="setup-error"></p>
         <button onclick="doSetup()" ${state.setupLoading ? 'disabled' : ''}>
@@ -728,8 +728,8 @@ function renderLogin() {
       <div class="login-card">
         <h1>${t('login.title')}</h1>
         <p class="subtitle">${t('login.subtitle')}</p>
-        <input id="login-user" placeholder="${t('login.username')}" />
-        <input id="login-pass" type="password" placeholder="${t('login.password')}" />
+        <input id="login-user" placeholder="${t('login.username')}" autofocus onkeydown="if(event.key==='Enter') document.getElementById('login-pass').focus()" />
+        <input id="login-pass" type="password" placeholder="${t('login.password')}" onkeydown="if(event.key==='Enter') login()" />
         <p class="login-error" id="login-error"></p>
         <button onclick="login()">${t('login.submit')}</button>
       </div>
@@ -1034,8 +1034,8 @@ function renderControlPanel() {
       <div class="cp-section">
         <h3>${t('cp.create_user')}</h3>
         <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:flex-end">
-          <input id="cp-user" placeholder="${t('setup.username')}" style="flex:1;min-width:140px" />
-          <input id="cp-pass" type="password" placeholder="${t('setup.password')}" style="flex:1;min-width:140px" />
+          <input id="cp-user" placeholder="${t('setup.username')}" style="flex:1;min-width:140px" onkeydown="if(event.key==='Enter') document.getElementById('cp-pass').focus()" />
+          <input id="cp-pass" type="password" placeholder="${t('setup.password')}" style="flex:1;min-width:140px" onkeydown="if(event.key==='Enter') createUser()" />
           <button class="btn btn-success" onclick="createUser()">${t('cp.add')}</button>
         </div>
         <p class="login-error" id="cp-error"></p>
