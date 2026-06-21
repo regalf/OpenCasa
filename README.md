@@ -88,6 +88,7 @@ Or use the Makefile: `doas make install`
 | `ui.memory_unit` | `"MB"` | Memory display unit (`"MB"` or `"GB"`) |
 | `ui.language` | `"en"` | UI language (`"en"` or `"it"`) |
 | `apps_dir` | `"/usr/local/webui/apps"` | Apps directory |
+| `master_key` | *(auto-generata)* | Base64 key for encrypted user database |
 | `apps_autostart` | `true` | Auto-start web apps on boot |
 
 ## App System
@@ -134,6 +135,37 @@ Web apps receive `OPENCASA_ACTION=widget` when polled for widget data (output JS
 
 Install via `sh examples/apps/install-examples.sh`
 
+## Database System
+
+User preferences (widget visibility, app settings) are stored in an **encrypted SQLite database** at `DATA_DIR/database/opencasa.db`.
+
+### How it works
+
+| Step | What happens |
+|------|-------------|
+| First boot | `os.urandom(48)` → base64 → written to `opencasa.json` as `master_key` |
+| Startup | PBKDF2-SHA256 derives two 32-byte keys from `master_key` (one-time cost, ~150ms on G3) |
+| Encrypt | HMAC-SHA256 in CTR mode: `ciphertext = plaintext XOR keystream` |
+| Decrypt | Same keystream → XOR back |
+| Integrity | Each stored value has an HMAC-SHA256 tag — tampering is detected |
+
+Derived keys are cached in RAM after startup; individual encrypt/decrypt operations use only fast HMAC calls (<1ms each).
+
+### Master key
+
+- Auto-generated if missing from config
+- If the key is accidentally changed or corrupted, the backend detects it via a verification token, deletes the old database, and creates a fresh one
+- Data loss is limited to user preferences (widget visibility) — not critical data
+
+### API
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/db/get?key=xxx` | GET | Read a value |
+| `/api/v1/db/set` | POST | Write a value |
+| `/api/v1/db/delete` | POST | Delete a key |
+| `/api/v1/db/list?prefix=` | GET | List keys |
+
 ## API
 
 Complete API reference in [API.md](API.md). Summary:
@@ -157,6 +189,10 @@ Complete API reference in [API.md](API.md). Summary:
 | `/api/v1/apps/<id>/widget` | GET | Yes | Get cached widget data |
 | `/api/v1/apps/<id>/icon` | GET | No | App icon image |
 | `/api/v1/apps/<id>/uninstall` | POST | Yes | Delete app |
+| `/api/v1/db/get` | GET | Yes | Read from user database |
+| `/api/v1/db/set` | POST | Yes | Write to user database |
+| `/api/v1/db/delete` | POST | Yes | Delete from user database |
+| `/api/v1/db/list` | GET | Yes | List database keys |
 | `/api/v1/notifications` | GET | Yes | List notifications |
 | `/api/v1/notify` | POST | Yes | Push notification |
 | `/app/<id>/<path>` | * | No | Web app proxy |
@@ -216,11 +252,12 @@ open http://localhost:80
 ├── backend/
 │   ├── webui.py              # HTTP server entry point
 │   └── webui/                # Python package
-│       ├── __init__.py       # Request routing + handlers
+│       ├── __init__.py       # Request routing + handlers + database init
 │       ├── auth.py           # JWT authentication
 │       ├── system.py         # CPU/memory/platform info
 │       ├── filemanager.py    # File operations
 │       ├── appmanager.py     # App lifecycle + widget cache
+│       ├── database.py       # Encrypted key-value store
 │       ├── notifications.py  # Notification storage
 │       └── proxy.py          # Web app HTTP proxy
 ├── frontend/

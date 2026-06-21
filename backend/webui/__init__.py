@@ -4,6 +4,7 @@ Zero dipendenze esterne, solo stdlib Python.
 """
 
 import argparse
+import base64
 import json
 import logging
 import mimetypes
@@ -35,6 +36,7 @@ DEFAULT_CONFIG = {
 }
 
 config = dict(DEFAULT_CONFIG)
+CONFIG_PATH = None
 
 DATA_DIR = "/usr/local/webui"
 APPS_FILE = None
@@ -52,7 +54,8 @@ set_data_dir(DATA_DIR)
 
 
 def load_config(path):
-    global config
+    global config, CONFIG_PATH
+    CONFIG_PATH = path
     try:
         with open(path) as f:
             user = json.load(f)
@@ -62,6 +65,20 @@ def load_config(path):
         logging.warning("no config at %s, using defaults", path)
     except json.JSONDecodeError as e:
         logging.error("invalid config: %s", e)
+
+
+def save_config():
+    path = CONFIG_PATH
+    if not path:
+        return
+    tmp = path + ".tmp"
+    try:
+        with open(tmp, "w") as f:
+            json.dump(config, f, indent=2)
+        os.replace(tmp, path)
+        logging.debug("config saved to %s", path)
+    except Exception as e:
+        logging.warning("failed to save config: %s", e)
 
 
 def deep_merge(base, overrides):
@@ -265,6 +282,14 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
             with notif_lock:
                 return self._send_json({"notifications": list(notifications)})
 
+        if path == "/api/v1/db/get" or path == "/api/v1/db/get/":
+            from .database import get
+            return self._send_json({"value": get(params.get("key", ""))})
+
+        if path == "/api/v1/db/list" or path == "/api/v1/db/list/":
+            from .database import list_keys
+            return self._send_json({"keys": list_keys(params.get("prefix", ""))})
+
         if path.startswith("/app/") and len(path) > 5:
             from .proxy import handle_app_proxy
             return handle_app_proxy(self, path)
@@ -364,6 +389,22 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
             )
             return self._send_json(n)
 
+        if path == "/api/v1/db/set" or path == "/api/v1/db/set/":
+            data = self._json_body()
+            if not data or "key" not in data:
+                return self._send_error(400, "missing key")
+            from .database import set
+            set(data["key"], data.get("value", ""))
+            return self._send_json({"success": True})
+
+        if path == "/api/v1/db/delete" or path == "/api/v1/db/delete/":
+            data = self._json_body()
+            if not data or "key" not in data:
+                return self._send_error(400, "missing key")
+            from .database import delete
+            delete(data["key"])
+            return self._send_json({"success": True})
+
         return self._send_error(404, f"endpoint not found: {path}")
 
     def do_PUT(self):
@@ -424,6 +465,20 @@ def main():
         fh = logging.FileHandler(config["log"]["file"])
         fh.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
         logging.getLogger().addHandler(fh)
+
+    if not config.get("master_key"):
+        config["master_key"] = base64.b64encode(os.urandom(48)).decode()
+        save_config()
+        logging.info("generated new master key")
+
+    from . import database
+    try:
+        database.init(config["master_key"], os.path.join(DATA_DIR, "database"))
+    except Exception as e:
+        logging.warning("database init failed, regenerating: %s", e)
+        import shutil
+        shutil.rmtree(os.path.join(DATA_DIR, "database"), ignore_errors=True)
+        database.init(config["master_key"], os.path.join(DATA_DIR, "database"))
 
     from .appmanager import init as appmanager_init
     from .notifications import load_notifications

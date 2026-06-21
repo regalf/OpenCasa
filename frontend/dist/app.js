@@ -40,6 +40,7 @@ let state = {
   appOutput: null,
   appOutputLoading: false,
   widgetsData: {},
+  widgetPrefs: {},
   appViewId: null,
   users: [{ user: 'admin', pass: 'admin' }],
 };
@@ -123,7 +124,10 @@ async function fetchAll() {
     ]);
     if (s && s.cpu) { state.stats = s; if (s.language) loadLocale(s.language); }
     if (st && st.filesystems) state.storage = st;
-    if (a && a.apps) state.apps = a.apps;
+    if (a && a.apps) {
+      state.apps = a.apps;
+      loadWidgetPrefs();
+    }
     if (n && n.notifications) state.notifications = n.notifications;
     if (i && i.hostname) state.info = i;
   } catch(e) { state.error = e.message; }
@@ -317,10 +321,33 @@ function openApp(id, type, status) {
 }
 
 function isWidgetEnabled(id) {
-  return localStorage.getItem('widget_' + id) !== 'false';
+  if (id in state.widgetPrefs) return state.widgetPrefs[id];
+  const ls = localStorage.getItem('widget_' + id);
+  return ls !== 'false';
 }
-function setWidgetEnabled(id, en) {
+async function setWidgetEnabled(id, en) {
+  state.widgetPrefs[id] = en;
   localStorage.setItem('widget_' + id, en ? 'true' : 'false');
+  await api('POST', '/db/set', { key: 'widget_' + id, value: en ? 'true' : 'false' }).catch(() => {});
+}
+
+async function loadWidgetPrefs() {
+  try {
+    const res = await api('GET', '/db/list?prefix=widget_');
+    if (!res || !res.keys) return;
+    for (const key of res.keys) {
+      const val = await api('GET', '/db/get?key=' + encodeURIComponent(key));
+      if (val && val.value != null) {
+        const id = key.replace(/^widget_/, '');
+        state.widgetPrefs[id] = val.value === 'true';
+      }
+    }
+  } catch(e) {
+    for (const app of state.apps) {
+      const v = localStorage.getItem('widget_' + app.id);
+      if (v !== null) state.widgetPrefs[app.id] = v !== 'false';
+    }
+  }
 }
 
 function renderAppTab(id) {

@@ -451,6 +451,61 @@ Common HTTP status codes:
 
 ---
 
+## User Database
+
+An encrypted key-value store for persisting user preferences on the server.
+Data is encrypted per-value using HMAC-CTR with a key derived from the
+`master_key` in the config. Integrity is verified with HMAC-SHA256.
+
+### `GET /api/v1/db/get?key=mykey`
+
+Get a stored value by key.
+
+**Response `200`:**
+```json
+{"value": "the-stored-value"}
+```
+`null` if the key does not exist.
+
+### `POST /api/v1/db/set`
+
+Set a key-value pair.
+
+**Request body:**
+```json
+{"key": "widget_myapp", "value": "true"}
+```
+
+**Response `200`:**
+```json
+{"success": true}
+```
+
+### `POST /api/v1/db/delete`
+
+Delete a key.
+
+**Request body:**
+```json
+{"key": "widget_myapp"}
+```
+
+**Response `200`:**
+```json
+{"success": true}
+```
+
+### `GET /api/v1/db/list?prefix=widget_`
+
+List all keys with an optional prefix filter.
+
+**Response `200`:**
+```json
+{"keys": ["widget_myapp", "widget_otherapp"]}
+```
+
+---
+
 ## CORS
 
 All API responses include:

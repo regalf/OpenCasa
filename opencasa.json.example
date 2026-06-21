@@ -34,5 +34,6 @@
     "memory_unit": "MB",
     "language": "en"
   },
-  "apps_dir": "/usr/local/webui/apps"
+  "apps_dir": "/usr/local/webui/apps",
+  "master_key": ""
 }
