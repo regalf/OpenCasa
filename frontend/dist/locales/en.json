@@ -76,6 +76,8 @@
   "apps.show_on_dashboard": "Show on dashboard",
   "apps.show_widget": "Show widget on dashboard",
   "apps.no_widget_data": "No data yet — run the app first",
+  "apps.starting": "Starting",
+  "apps.start_timeout": "Timed out waiting for app to start",
 
   "error.unauthorized": "Unauthorized"
 }

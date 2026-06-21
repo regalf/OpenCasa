@@ -76,6 +76,8 @@
   "apps.show_on_dashboard": "Mostra in dashboard",
   "apps.show_widget": "Mostra widget in dashboard",
   "apps.no_widget_data": "Ancora nessun dato — esegui prima l'app",
+  "apps.starting": "Avvio in corso",
+  "apps.start_timeout": "Timeout: l'app non risponde",
 
   "error.unauthorized": "Non autorizzato"
 }

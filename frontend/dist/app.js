@@ -43,6 +43,7 @@ let state = {
   widgetPrefs: {},
   dashboardPrefs: {},
   appViewId: null,
+  appStarting: null,
   users: [{ user: 'admin', pass: 'admin' }],
 };
 
@@ -408,6 +409,14 @@ function renderAppTab(id) {
   if (!app) {
     return `<div class="app-tab-content" style="align-items:center;justify-content:center;padding:3rem"><p class="dim">${t('apps.not_found')}</p></div>`;
   }
+  if (state.appStarting === id) {
+    return `
+      <div class="app-tab-content" style="align-items:center;justify-content:center;padding:3rem;flex-direction:column;gap:1rem">
+        <div class="loading-spinner"></div>
+        <p class="dim">${t('apps.starting')}...</p>
+      </div>
+    `;
+  }
   if (app.status !== 'running') {
     return `
       <div class="app-tab-content" style="align-items:center;justify-content:center;padding:3rem">
@@ -420,9 +429,35 @@ function renderAppTab(id) {
 }
 
 async function startWebAppFromTab(id) {
-  await api('POST','/apps/' + encodeURIComponent(id) + '/start');
-  await loadApps();
-  navigateApp(id);
+  state.appStarting = id;
+  state.error = '';
+  render();
+
+  try {
+    await api('POST', '/apps/' + encodeURIComponent(id) + '/start');
+
+    let ready = false;
+    for (let i = 0; i < 30; i++) {
+      await new Promise(r => setTimeout(r, 500));
+      try {
+        const r = await fetch('/app/' + encodeURIComponent(id) + '/', { method: 'HEAD' });
+        if (r.ok) { ready = true; break; }
+      } catch(e) {}
+    }
+
+    state.appStarting = null;
+    if (ready) {
+      await loadApps();
+      navigateApp(id);
+    } else {
+      state.error = t('apps.start_timeout');
+      render();
+    }
+  } catch(e) {
+    state.appStarting = null;
+    state.error = e.message;
+    render();
+  }
 }
 
 async function refreshWidgets() {
