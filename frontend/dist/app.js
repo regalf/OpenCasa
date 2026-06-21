@@ -283,6 +283,18 @@ function closeAppDetail() {
   render();
 }
 
+async function saveAppDetail() {
+  const d = state.appDetail;
+  if (!d) return;
+  const dashEn = document.getElementById('chk-dashboard').checked;
+  await setDashboardEnabled(d.id, dashEn);
+  if (d.has_widget) {
+    const widgetEn = document.getElementById('chk-widget').checked;
+    await setWidgetEnabled(d.id, widgetEn);
+  }
+  closeAppDetail();
+}
+
 async function runApp(id) {
   state.appOutputLoading = true;
   state.appOutput = null;
@@ -800,7 +812,10 @@ function renderAppManager() {
               <h2>${escapeHtml(d.name)}</h2>
               <span class="dim" style="font-size:.85rem">${escapeHtml(d.id)} v${escapeHtml(d.version)}</span>
             </div>
-            <button class="btn" onclick="closeAppDetail()">${t('apps.cancel')}</button>
+            <div style="display:flex;gap:.5rem">
+              <button class="btn btn-success" onclick="saveAppDetail()">${t('apps.save')}</button>
+              <button class="btn" onclick="closeAppDetail()">${t('apps.cancel')}</button>
+            </div>
           </div>
           ${d.author ? `<p class="dim">${t('apps.author')}: ${escapeHtml(d.author)}</p>` : ''}
           ${d.description ? `<p>${escapeHtml(d.description)}</p>` : ''}
@@ -818,14 +833,14 @@ function renderAppManager() {
           ` : ''}
           <div class="detail-section">
             <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.9rem">
-              <input type="checkbox" onchange="setDashboardEnabled('${escapeHtml(d.id)}',this.checked)" ${isDashboardEnabled(d.id) ? 'checked' : ''}>
+              <input type="checkbox" id="chk-dashboard" ${isDashboardEnabled(d.id) ? 'checked' : ''}>
               ${t('apps.show_on_dashboard')}
             </label>
           </div>
           ${d.has_widget ? `
           <div class="detail-section">
             <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.9rem">
-              <input type="checkbox" onchange="setWidgetEnabled('${escapeHtml(d.id)}',this.checked)" ${isWidgetEnabled(d.id) ? 'checked' : ''}>
+              <input type="checkbox" id="chk-widget" ${isWidgetEnabled(d.id) ? 'checked' : ''}>
               ${t('apps.show_widget')}
             </label>
           </div>
@@ -899,6 +914,7 @@ window.createDir = createDir;
 window.createFile = createFile;
 window.showAppDetail = showAppDetail;
 window.closeAppDetail = closeAppDetail;
+window.saveAppDetail = saveAppDetail;
 window.runApp = runApp;
 window.startWebApp = startWebApp;
 window.stopWebApp = stopWebApp;

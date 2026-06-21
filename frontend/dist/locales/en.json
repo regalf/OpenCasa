@@ -60,6 +60,7 @@
   "apps.permissions": "Permissions",
   "apps.status": "Status",
   "apps.run": "Run",
+  "apps.save": "Save",
   "apps.cancel": "Close",
   "apps.running": "Running",
   "apps.start": "Start",
