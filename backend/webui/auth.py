@@ -1,9 +1,10 @@
-"""JWT puro HMAC-SHA256, zero dipendenze."""
+"""JWT puro HMAC-SHA256, zero dipendenze. User management in DB."""
 
 import base64
-import hmac
 import hashlib
+import hmac
 import json
+import os
 import time
 
 from . import config
@@ -30,12 +31,13 @@ def parse_ttl(val):
     return 86400
 
 
-def make_token(username):
+def make_token(username, is_root=False):
     ttl = parse_ttl(config["auth"]["session_ttl"])
     header = _b64url(json.dumps({"alg": "HS256", "typ": "JWT"}).encode())
     payload = _b64url(
         json.dumps({
             "username": username,
+            "is_root": is_root,
             "exp": int(time.time()) + ttl,
             "iat": int(time.time()),
         }).encode()
@@ -72,3 +74,71 @@ def verify_token(token):
     if time.time() > payload.get("exp", 0):
         return None
     return payload
+
+
+# ── User management in encrypted DB ──
+
+def hash_password(password):
+    salt = os.urandom(16)
+    h = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 10000)
+    return base64.b64encode(salt + h).decode()
+
+
+def verify_password(password, stored):
+    try:
+        raw = base64.b64decode(stored)
+        salt, h = raw[:16], raw[16:]
+        return hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 10000) == h
+    except Exception:
+        return False
+
+
+def create_user(username, password, role="user"):
+    from . import database as dbmod
+    key = "_user:" + username
+    if dbmod.get(key):
+        return False, "User exists"
+    value = json.dumps({"hash": hash_password(password), "role": role, "created": time.time()})
+    dbmod.set(key, value)
+    return True, ""
+
+
+def delete_user(username):
+    from . import database as dbmod
+    dbmod.delete("_user:" + username)
+
+
+def list_users():
+    from . import database as dbmod
+    keys = [k for k in dbmod.list_keys() if k.startswith("_user:")]
+    users = []
+    for k in keys:
+        data = json.loads(dbmod.get(k))
+        users.append({"username": k[6:], "role": data.get("role", "user"), "created": data.get("created", 0)})
+    return users
+
+
+def user_count():
+    from . import database as dbmod
+    return len([k for k in dbmod.list_keys() if k.startswith("_user:")])
+
+
+def authenticate(config, username, password):
+    """Returns dict with username and is_root, or None on failure."""
+    # Check root user (from config file)
+    root_user = config.get("auth", {}).get("root_user", "root")
+    if username == root_user:
+        root_pass = config.get("auth", {}).get("root_password", "")
+        if root_pass and (root_pass == password or verify_password(password, root_pass)):
+            return {"username": username, "is_root": True}
+        return None
+
+    # Check DB users
+    from . import database as dbmod
+    data = dbmod.get("_user:" + username)
+    if not data:
+        return None
+    info = json.loads(data)
+    if verify_password(password, info.get("hash", "")):
+        return {"username": username, "is_root": False}
+    return None

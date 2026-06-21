@@ -1,6 +1,7 @@
 """
 webui — Pannello di Gestione Server per OpenBSD/macppc (G3/G4/G5)
 Zero dipendenze esterne, solo stdlib Python.
+Multi-utente con root da config e utenti regolari in DB cifrato.
 """
 
 import argparse
@@ -20,8 +21,8 @@ DEFAULT_CONFIG = {
     "server": {"host": "0.0.0.0", "port": 80},
     "auth": {
         "enabled": True,
-        "username": "admin",
-        "password": "admin",
+        "root_user": "root",
+        "root_password": "admin",
         "jwt_secret": "cambiami-con-32-byte-da-openssl-rand",
         "session_ttl": "24h",
     },
@@ -143,15 +144,19 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
             return None
         from .auth import verify_token
         payload = verify_token(token)
-        return payload["username"] if payload else None
+        return payload
 
     def _check_auth(self):
         if not config["auth"]["enabled"]:
+            self._current_user = None
+            self._is_root = True
             return True
-        user = self._get_user()
-        if not user:
+        payload = self._get_user()
+        if not payload:
             self._send_error(401, "unauthorized")
             return False
+        self._current_user = payload.get("username")
+        self._is_root = payload.get("is_root", False)
         return True
 
     def _serve_static(self, path):
@@ -178,6 +183,11 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
         self.end_headers()
         with open(filepath, "rb") as f:
             self._write(f.read())
+
+    def _user_pref_key(self, key):
+        """Scope a preference key to the current user."""
+        user = self._current_user or "default"
+        return f"_pref:{user}:{key}"
 
     # ── Router ──
 
@@ -225,11 +235,30 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
                     return
             return self._send_error(404, "icon not found")
 
+        # Setup check — no auth required
+        if path == "/api/v1/setup":
+            from .database import _conn
+            if _conn is None:
+                return self._send_json({"setup_needed": True})
+            from .auth import user_count
+            return self._send_json({"setup_needed": user_count() == 0})
+
         if not self._check_auth():
             return
 
         if path == "/api/v1/auth/check":
-            return self._send_json({"ok": True, "user": self._get_user()})
+            return self._send_json({
+                "ok": True,
+                "user": self._current_user,
+                "is_root": self._is_root,
+            })
+
+        # Users list (root only)
+        if path == "/api/v1/users" or path == "/api/v1/users/":
+            if not self._is_root:
+                return self._send_error(403, "forbidden")
+            from .auth import list_users
+            return self._send_json({"users": list_users()})
 
         if path == "/api/v1/files" or path == "/api/v1/files/":
             from .filemanager import handle_list_files
@@ -253,7 +282,10 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
 
         if path == "/api/v1/system/stats":
             from .system import get_system_stats
-            return self._send_json(get_system_stats())
+            stats = get_system_stats()
+            stats["is_root"] = self._is_root
+            stats["username"] = self._current_user or "root"
+            return self._send_json(stats)
 
         if path == "/api/v1/system/info":
             from .system import get_system_info
@@ -289,13 +321,20 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
             with notif_lock:
                 return self._send_json({"notifications": list(notifications)})
 
+        # DB endpoints — keys are scoped per user
         if path == "/api/v1/db/get" or path == "/api/v1/db/get/":
             from .database import get
-            return self._send_json({"value": get(params.get("key", ""))})
+            return self._send_json({"value": get(self._user_pref_key(params.get("key", "")))})
 
         if path == "/api/v1/db/list" or path == "/api/v1/db/list/":
             from .database import list_keys
-            return self._send_json({"keys": list_keys(params.get("prefix", ""))})
+            raw = params.get("prefix", "")
+            scoped_prefix = self._user_pref_key(raw) if raw else f"_pref:{self._current_user or 'default'}:"
+            keys = list_keys(scoped_prefix)
+            # Un-scope for the frontend
+            strip = len(f"_pref:{self._current_user or 'default'}:")
+            cleaned = [k[strip:] for k in keys]
+            return self._send_json({"keys": cleaned})
 
         if path.startswith("/app/") and len(path) > 5:
             from .proxy import handle_app_proxy
@@ -312,11 +351,13 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
             data = self._json_body()
             if not data:
                 return self._send_error(400, "invalid body")
-            user = data.get("username", "")
+            username = data.get("username", "")
             passwd = data.get("password", "")
-            if user == config["auth"]["username"] and passwd == config["auth"]["password"]:
+            from .auth import authenticate
+            user_info = authenticate(config, username, passwd)
+            if user_info:
                 from .auth import make_token
-                token = make_token(user)
+                token = make_token(user_info["username"], user_info["is_root"])
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Set-Cookie", "opencasa_token=" + urllib.parse.quote(token) + "; Path=/; SameSite=Lax; HttpOnly")
@@ -324,9 +365,41 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
                 self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
                 self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
                 self.end_headers()
-                self._write(json.dumps({"token": token, "user": user}).encode())
+                self._write(json.dumps({
+                    "token": token,
+                    "user": user_info["username"],
+                    "is_root": user_info["is_root"],
+                }).encode())
                 return
             return self._send_error(401, "invalid credentials")
+
+        # First-boot setup: create first user
+        if path == "/api/v1/setup":
+            from .auth import user_count, create_user
+            if user_count() > 0:
+                return self._send_error(403, "already set up")
+            data = self._json_body()
+            if not data or not data.get("username") or not data.get("password"):
+                return self._send_error(400, "missing username or password")
+            ok, msg = create_user(data["username"], data["password"])
+            if not ok:
+                return self._send_error(409, msg)
+            return self._send_json({"success": True})
+
+        # Create user (root only)
+        if path == "/api/v1/users" or path == "/api/v1/users/":
+            if not self._check_auth():
+                return
+            if not self._is_root:
+                return self._send_error(403, "forbidden")
+            data = self._json_body()
+            if not data or not data.get("username") or not data.get("password"):
+                return self._send_error(400, "missing username or password")
+            from .auth import create_user
+            ok, msg = create_user(data["username"], data["password"])
+            if not ok:
+                return self._send_error(409, msg)
+            return self._send_json({"success": True})
 
         # Proxy POST skips auth
         if path.startswith("/app/") and len(path) > 5:
@@ -405,20 +478,33 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
             )
             return self._send_json(n)
 
+        # DB set — user-scoped key
         if path == "/api/v1/db/set" or path == "/api/v1/db/set/":
             data = self._json_body()
             if not data or "key" not in data:
                 return self._send_error(400, "missing key")
             from .database import set
-            set(data["key"], data.get("value", ""))
+            set(self._user_pref_key(data["key"]), data.get("value", ""))
             return self._send_json({"success": True})
 
+        # DB delete — user-scoped key
         if path == "/api/v1/db/delete" or path == "/api/v1/db/delete/":
             data = self._json_body()
             if not data or "key" not in data:
                 return self._send_error(400, "missing key")
             from .database import delete
-            delete(data["key"])
+            delete(self._user_pref_key(data["key"]))
+            return self._send_json({"success": True})
+
+        # Delete user (root only)
+        if path.startswith("/api/v1/users/") and path.endswith("/delete"):
+            if not self._is_root:
+                return self._send_error(403, "forbidden")
+            username = path[len("/api/v1/users/"):-len("/delete")]
+            if username == self._current_user:
+                return self._send_error(400, "cannot delete yourself")
+            from .auth import delete_user
+            delete_user(username)
             return self._send_json({"success": True})
 
         return self._send_error(404, f"endpoint not found: {path}")

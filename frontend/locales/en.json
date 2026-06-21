@@ -2,6 +2,17 @@
   "app.title": "OpenCasa Dashboard",
   "app.brand": "OpenCasa",
 
+  "setup.title": "Welcome to OpenCasa",
+  "setup.subtitle": "Create your first user account",
+  "setup.username": "Username",
+  "setup.password": "Password",
+  "setup.confirm": "Confirm password",
+  "setup.create": "Create Account",
+  "setup.creating": "Creating",
+  "setup.fill_all": "Fill all fields",
+  "setup.pass_mismatch": "Passwords do not match",
+  "setup.pass_short": "Password must be at least 4 characters",
+
   "login.title": "OpenCasa",
   "login.subtitle": "Management Panel",
   "login.username": "Username",
@@ -13,6 +24,7 @@
   "nav.dashboard": "Dashboard",
   "nav.files": "File Manager",
   "nav.apps": "Apps",
+  "nav.control_panel": "Control Panel",
   "nav.logout": "Logout",
 
   "dashboard.title": "Dashboard",
@@ -54,7 +66,7 @@
   "files.kilobytes": "KB",
 
   "apps.title": "Apps",
-  "apps.empty_list": "No apps installed.\nCreate a folder with a manifest.json in /etc/opencasa/apps/",
+  "apps.empty_list": "No apps installed.\nCreate a folder with a manifest.json in DATA_DIR/apps/",
   "apps.author": "Author",
   "apps.type": "Type",
   "apps.permissions": "Permissions",
@@ -78,6 +90,18 @@
   "apps.no_widget_data": "No data yet — run the app first",
   "apps.starting": "Starting",
   "apps.start_timeout": "Timed out waiting for app to start",
+
+  "cp.title": "Control Panel",
+  "cp.create_user": "Create User",
+  "cp.add": "Add",
+  "cp.users_list": "Users",
+  "cp.no_users": "No users",
+  "cp.username_col": "Username",
+  "cp.role_col": "Role",
+  "cp.created_col": "Created",
+  "cp.delete": "Delete",
+  "cp.delete_confirm": "Delete user %s?",
+  "cp.you": "(you)",
 
   "error.unauthorized": "Unauthorized"
 }

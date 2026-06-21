@@ -237,3 +237,7 @@ body{
   display:flex;gap:.5rem;justify-content:flex-end
 }
 #editor-container{flex:1;min-height:0;display:flex}
+.cp{padding-bottom:2rem}
+.cp-section{background:#1e293b;padding:1rem;border-radius:10px;margin-bottom:1rem}
+.cp-section h3{margin-bottom:.6rem;color:#94a3b8;font-size:.9rem}
+.cp-section input{width:100%;padding:.5rem;background:#0f172a;border:1px solid #334155;border-radius:5px;color:#e2e8f0;font-size:.9rem;margin-bottom:.5rem}

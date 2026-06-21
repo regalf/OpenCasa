@@ -8,8 +8,8 @@
   },
   "auth": {
     "enabled": true,
-    "username": "admin",
-    "password": "admin",
+    "root_user": "root",
+    "root_password": "admin",
     "jwt_secret": "cambiami-con-32-byte-da-openssl-rand",
     "session_ttl": "24h"
   },

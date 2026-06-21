@@ -2,6 +2,17 @@
   "app.title": "OpenCasa Dashboard",
   "app.brand": "OpenCasa",
 
+  "setup.title": "Benvenuto in OpenCasa",
+  "setup.subtitle": "Crea il tuo primo account utente",
+  "setup.username": "Username",
+  "setup.password": "Password",
+  "setup.confirm": "Conferma password",
+  "setup.create": "Crea Account",
+  "setup.creating": "Creazione",
+  "setup.fill_all": "Compila tutti i campi",
+  "setup.pass_mismatch": "Le password non coincidono",
+  "setup.pass_short": "La password deve essere almeno 4 caratteri",
+
   "login.title": "OpenCasa",
   "login.subtitle": "Pannello di Gestione",
   "login.username": "Username",
@@ -13,6 +24,7 @@
   "nav.dashboard": "Dashboard",
   "nav.files": "File Manager",
   "nav.apps": "App",
+  "nav.control_panel": "Pannello di Controllo",
   "nav.logout": "Logout",
 
   "dashboard.title": "Dashboard",
@@ -54,7 +66,7 @@
   "files.kilobytes": "KB",
 
   "apps.title": "App",
-  "apps.empty_list": "Nessuna app installata.\nCrea una cartella con manifest.json in /etc/opencasa/apps/",
+  "apps.empty_list": "Nessuna app installata.\nCrea una cartella con manifest.json in DATA_DIR/apps/",
   "apps.author": "Autore",
   "apps.type": "Tipo",
   "apps.permissions": "Permessi",
@@ -78,6 +90,18 @@
   "apps.no_widget_data": "Ancora nessun dato — esegui prima l'app",
   "apps.starting": "Avvio in corso",
   "apps.start_timeout": "Timeout: l'app non risponde",
+
+  "cp.title": "Pannello di Controllo",
+  "cp.create_user": "Crea Utente",
+  "cp.add": "Aggiungi",
+  "cp.users_list": "Utenti",
+  "cp.no_users": "Nessun utente",
+  "cp.username_col": "Username",
+  "cp.role_col": "Ruolo",
+  "cp.created_col": "Creato il",
+  "cp.delete": "Elimina",
+  "cp.delete_confirm": "Eliminare l'utente %s?",
+  "cp.you": "(tu)",
 
   "error.unauthorized": "Non autorizzato"
 }

@@ -25,6 +25,8 @@ function t(key, ...args) {
 let state = {
   view: 'dashboard',
   loggedIn: !!token,
+  isRoot: false,
+  username: '',
   stats: null,
   storage: null,
   apps: [],
@@ -44,7 +46,9 @@ let state = {
   dashboardPrefs: {},
   appViewId: null,
   appStarting: null,
-  users: [{ user: 'admin', pass: 'admin' }],
+  setupNeeded: false,
+  setupLoading: false,
+  users: [],
 };
 
 async function api(method, path, body) {
@@ -69,6 +73,44 @@ async function api(method, path, body) {
   try { return JSON.parse(text); } catch(e) { return text; }
 }
 
+// ── Setup (first boot) ──
+
+async function checkSetup() {
+  try {
+    const res = await fetch(BASE + '/setup');
+    state.setupNeeded = res.ok && (await res.json()).setup_needed;
+  } catch(e) { state.setupNeeded = false; }
+}
+
+async function doSetup() {
+  const user = document.getElementById('setup-user').value.trim();
+  const pass = document.getElementById('setup-pass').value;
+  const conf = document.getElementById('setup-conf').value;
+  const errEl = document.getElementById('setup-error');
+  if (!user || !pass) { errEl.textContent = t('setup.fill_all'); return; }
+  if (pass !== conf) { errEl.textContent = t('setup.pass_mismatch'); return; }
+  if (pass.length < 4) { errEl.textContent = t('setup.pass_short'); return; }
+  state.setupLoading = true; render();
+  try {
+    const res = await fetch(BASE + '/setup', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({username: user, password: pass}),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({error: 'failed'}));
+      errEl.textContent = err.error || 'failed';
+      state.setupLoading = false; render();
+      return;
+    }
+    state.setupNeeded = false;
+    state.setupLoading = false;
+    render();
+  } catch(e) { errEl.textContent = e.message; state.setupLoading = false; render(); }
+}
+
+// ── Auth ──
+
 async function login() {
   const user = document.getElementById('login-user').value;
   const pass = document.getElementById('login-pass').value;
@@ -82,6 +124,8 @@ async function login() {
     token = res.token;
     localStorage.setItem('token', token);
     state.loggedIn = true;
+    state.isRoot = res.is_root || false;
+    state.username = res.user || user;
     state.error = '';
     closeSidebar();
     fetchAll(); render();
@@ -92,7 +136,8 @@ async function login() {
 
 function logout() {
   token = null; localStorage.removeItem('token');
-  state.loggedIn = false; render();
+  state.loggedIn = false; state.isRoot = false; state.username = '';
+  render();
 }
 
 function navigate(view) {
@@ -101,6 +146,7 @@ function navigate(view) {
   if (view === 'files' && state.files.length === 0) { loadFiles('/'); return; }
   if (view === 'dashboard') { fetchAll(); return; }
   if (view === 'apps') { loadApps(); return; }
+  if (view === 'controlpanel') { loadUsers(); return; }
   render();
 }
 
@@ -138,20 +184,20 @@ async function fetchAll() {
     if (i && i.hostname) state.info = i;
   } catch(e) { state.error = e.message; }
 
-  // Update/render immediately with main data (no widgets)
   if (state.view === 'dashboard' && document.getElementById('dash-grid')) {
     updateDashboardValues();
   } else {
     render();
   }
 
-  // Widgets in background — don't block dashboard
   if (state.view === 'dashboard') {
     refreshWidgets().then(() => {
       if (document.getElementById('dash-widgets')) updateDashboardValues();
     }).catch(() => {});
   }
 }
+
+// ── File manager ──
 
 async function loadFiles(path) {
   try {
@@ -262,6 +308,8 @@ async function createFile() {
   } catch(e) { state.error = e.message; render(); }
 }
 
+// ── Apps ──
+
 async function loadApps() {
   const res = await api('GET','/apps');
   state.apps = res.apps || [];
@@ -344,6 +392,8 @@ function openApp(id, type, status) {
   }
 }
 
+// ── Preferences (stored per-user on backend) ──
+
 function isWidgetEnabled(id) {
   if (id in state.widgetPrefs) return state.widgetPrefs[id];
   const ls = localStorage.getItem('widget_' + id);
@@ -403,6 +453,41 @@ async function loadWidgetPrefs() {
     }
   }
 }
+
+// ── Control Panel / Users ──
+
+async function loadUsers() {
+  try {
+    const res = await api('GET', '/users');
+    state.users = res.users || [];
+  } catch(e) { state.error = e.message; }
+  render();
+}
+
+async function createUser() {
+  const user = document.getElementById('cp-user').value.trim();
+  const pass = document.getElementById('cp-pass').value;
+  const errEl = document.getElementById('cp-error');
+  if (!user || !pass) { errEl.textContent = t('setup.fill_all'); return; }
+  if (pass.length < 4) { errEl.textContent = t('setup.pass_short'); return; }
+  try {
+    await api('POST', '/users', { username: user, password: pass });
+    document.getElementById('cp-user').value = '';
+    document.getElementById('cp-pass').value = '';
+    errEl.textContent = '';
+    loadUsers();
+  } catch(e) { errEl.textContent = e.message; }
+}
+
+async function deleteUser(username) {
+  if (!confirm(t('cp.delete_confirm', username))) return;
+  try {
+    await api('POST', '/users/' + encodeURIComponent(username) + '/delete');
+    loadUsers();
+  } catch(e) { state.error = e.message; render(); }
+}
+
+// ── App tab ──
 
 function renderAppTab(id) {
   const app = state.apps.find(a => a.id === id);
@@ -477,12 +562,10 @@ function updateDashboardValues() {
   const st = state.storage;
   const a = state.apps;
   const i = state.info;
-  // System info
   const sysEl = document.getElementById('sys-name');
   if (sysEl && i?.hostname) {
     sysEl.textContent = i.ostype + ' ' + i.osrelease + ' — ' + i.hostname + ' (' + i.machine + ')';
   }
-  // CPU
   if (s?.cpu) {
     const idle = s.cpu.idle ?? 0;
     const used = 100 - idle;
@@ -493,7 +576,6 @@ function updateDashboardValues() {
     if (pctEl) pctEl.textContent = used.toFixed(1) + t('dashboard.cpu_used');
     if (specEl) specEl.textContent = s.cpu.cores + ' ' + t('dashboard.cpu_core') + ' ' + s.cpu.freq_mhz;
   }
-  // Memory
   if (s?.memory) {
     const memUnit = s.memory_unit === 'MB' ? 1024*1024 : 1024*1024*1024;
     const memLabel = s.memory_unit === 'MB' ? 'MB' : 'GB';
@@ -507,7 +589,6 @@ function updateDashboardValues() {
     if (detEl) detEl.textContent = usedMem + ' / ' + totalMem + ' ' + memLabel;
     if (pctEl) pctEl.textContent = memPct.toFixed(1) + '%';
   }
-  // Storage
   if (st?.filesystems?.length) {
     const tbody = document.getElementById('stor-body');
     if (tbody) {
@@ -517,11 +598,9 @@ function updateDashboardValues() {
           <td>${escapeHtml(fs.used)}</td>
           <td>${escapeHtml(fs.total)}</td>
           <td><div class="mini-bar"><div class="fill" style="width:${fs.capacity}%"></div></div></td>
-        </tr>
-      `).join('');
+        </tr>`).join('');
     }
   }
-  // Widgets row
   const wr = document.getElementById('dash-widgets');
   if (wr) {
     const enabled = a.filter(x => x.has_widget && isWidgetEnabled(x.id));
@@ -543,7 +622,6 @@ function updateDashboardValues() {
   }
 }
 
-// Rendering
 function html(strings, ...vals) {
   let out = '';
   strings.forEach((s, i) => { out += s + (vals[i] !== undefined ? vals[i] : ''); });
@@ -562,12 +640,22 @@ function isDangerousPath(p) {
   return DANGEROUS_PATHS.some(d => p === d || p.startsWith(d + '/'));
 }
 
+// ── Render ──
+
 function render() {
   const app = document.getElementById('app');
+
+  // First check if setup is needed
+  if (!state.loggedIn && state.setupNeeded) {
+    app.innerHTML = renderSetup();
+    return;
+  }
+
   if (!state.loggedIn) {
     app.innerHTML = renderLogin();
     return;
   }
+
   const webApps = state.apps.filter(a => a.type === 'web');
   const appTabId = state.view === 'app' ? state.appViewId : null;
   app.innerHTML = `
@@ -577,6 +665,9 @@ function render() {
       <button class="${state.view==='dashboard'?'active':''}" onclick="navigate('dashboard')">${t('nav.dashboard')}</button>
       <button class="${state.view==='files'?'active':''}" onclick="navigate('files')">${t('nav.files')}</button>
       <button class="${state.view==='apps'?'active':''}" onclick="navigate('apps')">${t('nav.apps')}</button>
+      ${state.isRoot ? `
+      <button class="${state.view==='controlpanel'?'active':''}" onclick="navigate('controlpanel')">${t('nav.control_panel')}</button>
+      ` : ''}
       ${webApps.length > 0 ? `
       <hr class="sidebar-sep">
       ${webApps.map(a => `
@@ -593,8 +684,29 @@ function render() {
       ${state.view === 'dashboard' ? renderDashboard() : ''}
       ${state.view === 'files' ? renderFileManager() : ''}
       ${state.view === 'apps' ? renderAppManager() : ''}
+      ${state.view === 'controlpanel' ? renderControlPanel() : ''}
       ${appTabId ? renderAppTab(appTabId) : ''}
     </section>
+  `;
+}
+
+function renderSetup() {
+  return `
+    <div class="login-screen">
+      <div class="login-card" style="text-align:center">
+        <h1>${t('setup.title')}</h1>
+        <p class="subtitle">${t('setup.subtitle')}</p>
+        <div style="text-align:left">
+          <input id="setup-user" placeholder="${t('setup.username')}" />
+          <input id="setup-pass" type="password" placeholder="${t('setup.password')}" />
+          <input id="setup-conf" type="password" placeholder="${t('setup.confirm')}" />
+        </div>
+        <p class="login-error" id="setup-error"></p>
+        <button onclick="doSetup()" ${state.setupLoading ? 'disabled' : ''}>
+          ${state.setupLoading ? t('setup.creating') + '...' : t('setup.create')}
+        </button>
+      </div>
+    </div>
   `;
 }
 
@@ -622,12 +734,9 @@ function renderLogin() {
                 ${wd ? Object.entries(wd).map(([k,v]) => {
                   const lbl = typeof v === 'object' ? (v.label || '') : String(v);
                   const det = typeof v === 'object' ? (v.detail || '') : '';
-                  return `
-                  <div class="widget-row">
-                    <span class="widget-label">${escapeHtml(k)}</span>
-                    <span class="widget-value">${escapeHtml(lbl)}</span>
-                  </div>
-                  ${det ? `<div class="widget-detail">${escapeHtml(det)}</div>` : ''}`;
+                  return '<div class="widget-row"><span class="widget-label">' + escapeHtml(k) + '</span>' +
+                    '<span class="widget-value">' + escapeHtml(lbl) + '</span></div>' +
+                    (det ? '<div class="widget-detail">' + escapeHtml(det) + '</div>' : '');
                 }).join('') : `<span class="dim">${t('apps.no_widget_data')}</span>`}
               </div>
             `;
@@ -692,8 +801,7 @@ function renderDashboard() {
                     <td>${escapeHtml(fs.used)}</td>
                     <td>${escapeHtml(fs.total)}</td>
                     <td><div class="mini-bar"><div class="fill" style="width:${fs.capacity}%"></div></div></td>
-                  </tr>
-                `).join('')}
+                  </tr>`).join('')}
               </tbody>
             </table>
           ` : `<p class="dim">${t('dashboard.loading')}</p>`}
@@ -709,8 +817,7 @@ function renderDashboard() {
                   <div class="app-card-icon-placeholder" style="${app.icon ? 'display:none' : ''}">${escapeHtml(app.name[0] || '?')}</div>
                   <span class="app-name">${escapeHtml(app.name)}</span>
                   ${app.status === 'running' ? `<span class="app-status running">● ${t('apps.running')}</span>` : ''}
-                </div>
-              `).join('')}
+                </div>`).join('')}
             </div>
           ` : `<p class="dim">${t('dashboard.no_apps')}</p>`}
         </div>
@@ -728,15 +835,11 @@ function renderDashboard() {
                 ${wd ? Object.entries(wd).map(([k,v]) => {
                   const lbl = typeof v === 'object' ? (v.label || '') : String(v);
                   const det = typeof v === 'object' ? (v.detail || '') : '';
-                  return `
-                  <div class="widget-row">
-                    <span class="widget-label">${escapeHtml(k)}</span>
-                    <span class="widget-value">${escapeHtml(lbl)}</span>
-                  </div>
-                  ${det ? `<div class="widget-detail">${escapeHtml(det)}</div>` : ''}`;
+                  return '<div class="widget-row"><span class="widget-label">' + escapeHtml(k) + '</span>' +
+                    '<span class="widget-value">' + escapeHtml(lbl) + '</span></div>' +
+                    (det ? '<div class="widget-detail">' + escapeHtml(det) + '</div>' : '');
                 }).join('') : `<span class="dim">${t('apps.no_widget_data')}</span>`}
-              </div>
-            `;
+              </div>`;
           }).join('')}
         </div>
       </div>
@@ -748,8 +851,7 @@ function renderDashboard() {
             <div class="notif ${not.severity || 'info'}">
               <strong>${escapeHtml(not.title)}</strong> — ${escapeHtml(not.message)}
               <span class="time">${escapeHtml(not.timestamp)}</span>
-            </div>
-          `).join('')}
+            </div>`).join('')}
             </div>
           ` : ''}
       ${state.error ? `<p style="color:#f87171">${escapeHtml(state.error)}</p>` : ''}
@@ -814,8 +916,7 @@ function renderFileManager() {
               ` : ''}
               <button onclick="deleteFile('${escapeHtml(e.name)}')" title="${t('files.delete')}">🗑️</button>
             </td>
-          </tr>
-        `).join('')}
+          </tr>`).join('')}
       </tbody>
     </table>
   `;
@@ -835,95 +936,129 @@ function renderAppManager() {
             <span class="app-card-name">${escapeHtml(app.name)}</span>
             <span class="app-card-type ${app.type}">${app.type}</span>
             ${app.status === 'running' ? `<span class="app-card-status running">● ${t('apps.running')}</span>` : ''}
-          </div>
-        `).join('')}
+          </div>`).join('')}
       </div>
     `}
-    ${d ? `
-      <div class="detail-overlay" onclick="if(event.target===this)closeAppDetail()">
-        <div class="detail-modal">
-          <div class="detail-header">
-            <div>
-              <h2>${escapeHtml(d.name)}</h2>
-              <span class="dim" style="font-size:.85rem">${escapeHtml(d.id)} v${escapeHtml(d.version)}</span>
-            </div>
-            <div style="display:flex;gap:.5rem">
-              <button class="btn btn-success" onclick="saveAppDetail()">${t('apps.save')}</button>
-              <button class="btn" onclick="closeAppDetail()">${t('apps.cancel')}</button>
-            </div>
-          </div>
-          ${d.author ? `<p class="dim">${t('apps.author')}: ${escapeHtml(d.author)}</p>` : ''}
-          ${d.description ? `<p>${escapeHtml(d.description)}</p>` : ''}
-          <div class="detail-section">
-            <strong>${t('apps.type')}:</strong> <span class="app-card-type ${d.type}">${d.type}</span>
-            ${d.type === 'web' && d.port ? `<span style="margin-left:1rem;color:#64748b">port ${d.port}</span>` : ''}
-          </div>
-          ${d.permissions && d.permissions.length ? `
-            <div class="detail-section">
-              <strong>${t('apps.permissions')}:</strong>
-              <div class="perm-list">
-                ${d.permissions.map(p => `<span class="perm-badge">${escapeHtml(p)}</span>`).join('')}
-              </div>
-            </div>
-          ` : ''}
-          <div class="detail-section">
-            <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.9rem">
-              <input type="checkbox" id="chk-dashboard" ${isDashboardEnabled(d.id) ? 'checked' : ''}>
-              ${t('apps.show_on_dashboard')}
-            </label>
-          </div>
-          ${d.has_widget ? `
-          <div class="detail-section">
-            <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.9rem">
-              <input type="checkbox" id="chk-widget" ${isWidgetEnabled(d.id) ? 'checked' : ''}>
-              ${t('apps.show_widget')}
-            </label>
-          </div>
-          ` : ''}
-          <div class="detail-section">
-            <strong>${t('apps.status')}:</strong>
-            <span class="status-badge ${d.status}">${d.status}</span>
-            ${d.pid > 0 ? `<span class="pid-text">PID ${d.pid}</span>` : ''}
-          </div>
-          <div class="detail-actions">
-            ${d.type === 'tool' || d.type === 'widget' ? `
-              <button class="btn btn-success" onclick="runApp('${escapeHtml(d.id)}')" ${state.appOutputLoading ? 'disabled' : ''}>
-                ${state.appOutputLoading ? t('apps.running') + '...' : t('apps.run')}
-              </button>
-            ` : ''}
-            ${d.type === 'web' ? `
-              ${d.status === 'running'
-                ? `<button class="btn btn-danger" onclick="stopWebApp('${escapeHtml(d.id)}')">${t('apps.stop')}</button>
-                   <a href="/app/${encodeURIComponent(d.id)}" target="_blank" class="btn btn-primary">${t('apps.open')}</a>`
-                : `<button class="btn btn-success" onclick="startWebApp('${escapeHtml(d.id)}')">${t('apps.start')}</button>`
-              }
-            ` : ''}
-            <button class="btn btn-danger" style="margin-left:auto" onclick="uninstallApp('${escapeHtml(d.id)}')">${t('apps.uninstall')}</button>
-          </div>
-          ${state.appOutput ? `
-            <div class="detail-section">
-              <strong>${t('apps.output')}</strong>
-              ${state.appOutput.error ? `<p style="color:#f87171">${escapeHtml(state.appOutput.error)}</p>` : `
-                <pre class="app-output">${escapeHtml(state.appOutput.stdout || '')}${state.appOutput.stderr ? '\n--- stderr ---\n' + escapeHtml(state.appOutput.stderr) : ''}${state.appOutput.returncode !== 0 ? '\n' + t('apps.exit_code') + ': ' + state.appOutput.returncode : ''}</pre>
-              `}
-            </div>
-          ` : state.appOutputLoading ? `<p class="dim">${t('apps.running')}...</p>` : ''}
-          ${d.logs && d.logs.length ? `
-            <div class="detail-section">
-              <strong>${t('apps.recent_logs')}</strong>
-              ${d.logs.slice().reverse().map(log => `
-                <div class="log-entry">
-                  <span class="log-time">${escapeHtml(log.timestamp)}</span>
-                  <span class="log-rc ${log.returncode === 0 ? 'ok' : 'fail'}">exit ${log.returncode}</span>
-                  <pre class="log-output">${escapeHtml((log.stdout || '').substring(0, 200))}</pre>
-                </div>
-              `).join('')}
-            </div>
-          ` : ''}
-        </div>
-      </div>
-    ` : ''}
+    ${d ? renderAppDetail(d) : ''}
     ${state.error ? `<p style="color:#f87171">${escapeHtml(state.error)}</p>` : ''}
+  `;
+}
+
+function renderAppDetail(d) {
+  return `
+    <div class="detail-overlay" onclick="if(event.target===this)closeAppDetail()">
+      <div class="detail-modal">
+        <div class="detail-header">
+          <div>
+            <h2>${escapeHtml(d.name)}</h2>
+            <span class="dim" style="font-size:.85rem">${escapeHtml(d.id)} v${escapeHtml(d.version)}</span>
+          </div>
+          <div style="display:flex;gap:.5rem">
+            <button class="btn btn-success" onclick="saveAppDetail()">${t('apps.save')}</button>
+            <button class="btn" onclick="closeAppDetail()">${t('apps.cancel')}</button>
+          </div>
+        </div>
+        ${d.author ? `<p class="dim">${t('apps.author')}: ${escapeHtml(d.author)}</p>` : ''}
+        ${d.description ? `<p>${escapeHtml(d.description)}</p>` : ''}
+        <div class="detail-section">
+          <strong>${t('apps.type')}:</strong> <span class="app-card-type ${d.type}">${d.type}</span>
+          ${d.type === 'web' && d.port ? `<span style="margin-left:1rem;color:#64748b">port ${d.port}</span>` : ''}
+        </div>
+        ${d.permissions && d.permissions.length ? `
+          <div class="detail-section">
+            <strong>${t('apps.permissions')}:</strong>
+            <div class="perm-list">
+              ${d.permissions.map(p => `<span class="perm-badge">${escapeHtml(p)}</span>`).join('')}
+            </div>
+          </div>` : ''}
+        <div class="detail-section">
+          <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.9rem">
+            <input type="checkbox" id="chk-dashboard" ${isDashboardEnabled(d.id) ? 'checked' : ''}>
+            ${t('apps.show_on_dashboard')}
+          </label>
+        </div>
+        ${d.has_widget ? `
+        <div class="detail-section">
+          <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.9rem">
+            <input type="checkbox" id="chk-widget" ${isWidgetEnabled(d.id) ? 'checked' : ''}>
+            ${t('apps.show_widget')}
+          </label>
+        </div>` : ''}
+        <div class="detail-section">
+          <strong>${t('apps.status')}:</strong>
+          <span class="status-badge ${d.status}">${d.status}</span>
+          ${d.pid > 0 ? `<span class="pid-text">PID ${d.pid}</span>` : ''}
+        </div>
+        <div class="detail-actions">
+          ${d.type === 'tool' || d.type === 'widget' ? `
+            <button class="btn btn-success" onclick="runApp('${escapeHtml(d.id)}')" ${state.appOutputLoading ? 'disabled' : ''}>
+              ${state.appOutputLoading ? t('apps.running') + '...' : t('apps.run')}
+            </button>` : ''}
+          ${d.type === 'web' ? `
+            ${d.status === 'running'
+              ? `<button class="btn btn-danger" onclick="stopWebApp('${escapeHtml(d.id)}')">${t('apps.stop')}</button>
+                 <a href="/app/${encodeURIComponent(d.id)}" target="_blank" class="btn btn-primary">${t('apps.open')}</a>`
+              : `<button class="btn btn-success" onclick="startWebApp('${escapeHtml(d.id)}')">${t('apps.start')}</button>`
+            }` : ''}
+          <button class="btn btn-danger" style="margin-left:auto" onclick="uninstallApp('${escapeHtml(d.id)}')">${t('apps.uninstall')}</button>
+        </div>
+        ${state.appOutput ? `
+          <div class="detail-section">
+            <strong>${t('apps.output')}</strong>
+            ${state.appOutput.error ? `<p style="color:#f87171">${escapeHtml(state.appOutput.error)}</p>` : `
+              <pre class="app-output">${escapeHtml(state.appOutput.stdout || '')}${state.appOutput.stderr ? '\n--- stderr ---\n' + escapeHtml(state.appOutput.stderr) : ''}${state.appOutput.returncode !== 0 ? '\n' + t('apps.exit_code') + ': ' + state.appOutput.returncode : ''}</pre>`}
+          </div>` : state.appOutputLoading ? `<p class="dim">${t('apps.running')}...</p>` : ''}
+        ${d.logs && d.logs.length ? `
+          <div class="detail-section">
+            <strong>${t('apps.recent_logs')}</strong>
+            ${d.logs.slice().reverse().map(log => `
+              <div class="log-entry">
+                <span class="log-time">${escapeHtml(log.timestamp)}</span>
+                <span class="log-rc ${log.returncode === 0 ? 'ok' : 'fail'}">exit ${log.returncode}</span>
+                <pre class="log-output">${escapeHtml((log.stdout || '').substring(0, 200))}</pre>
+              </div>`).join('')}
+          </div>` : ''}
+      </div>
+    </div>
+  `;
+}
+
+function renderControlPanel() {
+  return `
+    <div class="cp">
+      <h1 style="margin-bottom:1rem">${t('cp.title')}</h1>
+
+      <div class="cp-section">
+        <h3>${t('cp.create_user')}</h3>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:flex-end">
+          <input id="cp-user" placeholder="${t('setup.username')}" style="flex:1;min-width:140px" />
+          <input id="cp-pass" type="password" placeholder="${t('setup.password')}" style="flex:1;min-width:140px" />
+          <button class="btn btn-success" onclick="createUser()">${t('cp.add')}</button>
+        </div>
+        <p class="login-error" id="cp-error"></p>
+      </div>
+
+      <div class="cp-section">
+        <h3>${t('cp.users_list')}</h3>
+        ${state.users.length === 0 ? `<p class="dim">${t('cp.no_users')}</p>` : `
+        <table class="file-table">
+          <thead><tr><th>${t('cp.username_col')}</th><th>${t('cp.role_col')}</th><th>${t('cp.created_col')}</th><th></th></tr></thead>
+          <tbody>
+            ${state.users.map(u => `
+            <tr>
+              <td>${escapeHtml(u.username)}</td>
+              <td>${escapeHtml(u.role)}</td>
+              <td>${u.created ? new Date(u.created*1000).toLocaleDateString() : '—'}</td>
+              <td>
+                ${state.username !== u.username ? `<button class="btn btn-danger" onclick="deleteUser('${escapeHtml(u.username)}')">${t('cp.delete')}</button>` : `<span class="dim">${t('cp.you')}</span>`}
+              </td>
+            </tr>`).join('')}
+          </tbody>
+        </table>`}
+      </div>
+
+      ${state.error ? `<p style="color:#f87171">${escapeHtml(state.error)}</p>` : ''}
+    </div>
   `;
 }
 
@@ -932,8 +1067,31 @@ setInterval(() => {
   if (state.loggedIn && state.view === 'dashboard') fetchAll();
 }, 5000);
 
-// Initial render — load default locale then fetch
-loadLocale('en').then(fetchAll);
+// Initial render
+loadLocale('en').then(async () => {
+  await checkSetup();
+  if (token && !state.setupNeeded) {
+    // Verify token still valid
+    try {
+      const c = await fetch(BASE + '/auth/check', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if (c.ok) {
+        const j = await c.json();
+        state.isRoot = j.is_root || false;
+        state.username = j.user || '';
+        state.loggedIn = true;
+      } else {
+        token = null; localStorage.removeItem('token');
+      }
+    } catch(e) {
+      token = null; localStorage.removeItem('token');
+    }
+  }
+  fetchAll();
+});
+
+window.doSetup = doSetup;
 window.login = login;
 window.logout = logout;
 window.navigate = navigate;
@@ -958,4 +1116,6 @@ window.startWebAppFromTab = startWebAppFromTab;
 window.stopWebApp = stopWebApp;
 window.uninstallApp = uninstallApp;
 window.openApp = openApp;
+window.createUser = createUser;
+window.deleteUser = deleteUser;
 })();
