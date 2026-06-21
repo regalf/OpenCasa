@@ -104,7 +104,7 @@ body{
   font-weight:700;font-size:1.2rem;margin-bottom:.2rem
 }
 .app-card-name{font-size:.8rem;text-align:center;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
-.app-card-type{font-size:.65rem;padding:.1rem .4rem;border-radius:3px;color:#94a3b8}
+.app-card-type{display:inline-flex;align-items:center;line-height:1;font-size:.65rem;padding:.1rem .4rem;border-radius:3px;color:#94a3b8}
 .app-card-type.tool{background:#1e3a5f;color:#60a5fa}
 .app-card-type.widget{background:#3b1f5e;color:#c084fc}
 .app-card-type.web{background:#1e5f3a;color:#4ade80}
@@ -130,6 +130,7 @@ body{
 .detail-actions{display:flex;gap:.5rem;align-items:center;margin:1rem 0;flex-wrap:wrap}
 .perm-list{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.3rem}
 .perm-badge{
+  display:inline-flex;align-items:center;line-height:1;
   font-size:.7rem;background:#334155;color:#94a3b8;
   padding:.15rem .5rem;border-radius:4px;font-family:monospace
 }
