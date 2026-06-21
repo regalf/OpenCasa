@@ -79,7 +79,7 @@ def verify_token(token):
 # ── User management in encrypted DB ──
 
 def hash_password(password):
-    salt = os.urandom(16)
+    salt = os.urandom(32)
     h = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 10000)
     return base64.b64encode(salt + h).decode()
 
@@ -87,7 +87,8 @@ def hash_password(password):
 def verify_password(password, stored):
     try:
         raw = base64.b64decode(stored)
-        salt, h = raw[:16], raw[16:]
+        salt_len = 32 if len(raw) > 48 else 16
+        salt, h = raw[:salt_len], raw[salt_len:]
         return hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 10000) == h
     except Exception:
         return False
