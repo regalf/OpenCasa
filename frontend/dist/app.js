@@ -525,7 +525,7 @@ async function startWebAppFromTab(id) {
     for (let i = 0; i < 30; i++) {
       await new Promise(r => setTimeout(r, 500));
       try {
-        const r = await fetch('/app/' + encodeURIComponent(id) + '/', { method: 'HEAD' });
+        const r = await fetch('/app/' + encodeURIComponent(id) + '/', { method: 'GET' });
         if (r.ok) { ready = true; break; }
       } catch(e) {}
     }

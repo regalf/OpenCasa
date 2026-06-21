@@ -201,6 +201,9 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
     def _log_request(self):
         logging.debug("%s %s", self.command, self.path)
 
+    def do_HEAD(self):
+        return self.do_GET()
+
     def do_GET(self):
         self._log_request()
         path = urllib.parse.urlparse(self.path).path
