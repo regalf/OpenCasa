@@ -72,7 +72,8 @@
   "apps.recent_logs": "Esecuzioni recenti",
   "apps.not_found": "App non trovata",
   "apps.not_running": "non in esecuzione",
-  "apps.show_widget": "Mostra in dashboard",
+  "apps.show_on_dashboard": "Mostra in dashboard",
+  "apps.show_widget": "Mostra widget in dashboard",
   "apps.no_widget_data": "Ancora nessun dato — esegui prima l'app",
 
   "error.unauthorized": "Non autorizzato"

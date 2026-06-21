@@ -72,7 +72,8 @@
   "apps.recent_logs": "Recent runs",
   "apps.not_found": "App not found",
   "apps.not_running": "not running",
-  "apps.show_widget": "Show on dashboard",
+  "apps.show_on_dashboard": "Show on dashboard",
+  "apps.show_widget": "Show widget on dashboard",
   "apps.no_widget_data": "No data yet — run the app first",
 
   "error.unauthorized": "Unauthorized"

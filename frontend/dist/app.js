@@ -41,6 +41,7 @@ let state = {
   appOutputLoading: false,
   widgetsData: {},
   widgetPrefs: {},
+  dashboardPrefs: {},
   appViewId: null,
   users: [{ user: 'admin', pass: 'admin' }],
 };
@@ -130,6 +131,7 @@ async function fetchAll() {
     if (a && a.apps) {
       state.apps = a.apps;
       loadWidgetPrefs();
+      loadDashboardPrefs();
     }
     if (n && n.notifications) state.notifications = n.notifications;
     if (i && i.hostname) state.info = i;
@@ -340,6 +342,36 @@ async function setWidgetEnabled(id, en) {
   await api('POST', '/db/set', { key: 'widget_' + id, value: en ? 'true' : 'false' }).catch(() => {});
 }
 
+function isDashboardEnabled(id) {
+  if (id in state.dashboardPrefs) return state.dashboardPrefs[id];
+  const ls = localStorage.getItem('dashboard_' + id);
+  return ls !== 'false';
+}
+async function setDashboardEnabled(id, en) {
+  state.dashboardPrefs[id] = en;
+  localStorage.setItem('dashboard_' + id, en ? 'true' : 'false');
+  await api('POST', '/db/set', { key: 'dashboard_' + id, value: en ? 'true' : 'false' }).catch(() => {});
+}
+
+async function loadDashboardPrefs() {
+  try {
+    const res = await api('GET', '/db/list?prefix=dashboard_');
+    if (!res || !res.keys) return;
+    for (const key of res.keys) {
+      const val = await api('GET', '/db/get?key=' + encodeURIComponent(key));
+      if (val && val.value != null) {
+        const id = key.replace(/^dashboard_/, '');
+        state.dashboardPrefs[id] = val.value === 'true';
+      }
+    }
+  } catch(e) {
+    for (const app of state.apps) {
+      const v = localStorage.getItem('dashboard_' + app.id);
+      if (v !== null) state.dashboardPrefs[app.id] = v !== 'false';
+    }
+  }
+}
+
 async function loadWidgetPrefs() {
   try {
     const res = await api('GET', '/db/list?prefix=widget_');
@@ -383,7 +415,7 @@ async function startWebAppFromTab(id) {
 
 async function refreshWidgets() {
   if (state.view !== 'dashboard') return;
-  const ids = state.apps.filter(a => isWidgetEnabled(a.id)).map(a => a.id);
+  const ids = state.apps.filter(a => a.has_widget && isWidgetEnabled(a.id)).map(a => a.id);
   if (!ids.length) return;
   for (const id of ids) {
     try {
@@ -445,7 +477,7 @@ function updateDashboardValues() {
   // Widgets row
   const wr = document.getElementById('dash-widgets');
   if (wr) {
-    const enabled = a.filter(x => isWidgetEnabled(x.id));
+    const enabled = a.filter(x => x.has_widget && isWidgetEnabled(x.id));
     if (enabled.length) {
       wr.innerHTML = enabled.map(w => {
         const wd = state.widgetsData[w.id];
@@ -623,7 +655,7 @@ function renderDashboard() {
           <h3>${t('dashboard.installed_apps')}</h3>
           ${a.length > 0 ? `
             <div class="app-grid">
-              ${a.map(app => `
+              ${a.filter(app => isDashboardEnabled(app.id)).map(app => `
                 <div class="app-card" onclick="openApp('${escapeHtml(app.id)}','${app.type}','${app.status}')" style="cursor:pointer">
                   <button class="app-card-menu" onclick="event.stopPropagation();showAppDetail('${escapeHtml(app.id)}')">⋮</button>
                   <img class="app-card-icon" src="/api/v1/apps/${encodeURIComponent(app.id)}/icon" alt="" onerror="this.style.display='none'"/>
@@ -637,11 +669,11 @@ function renderDashboard() {
         </div>
       </div>
       `}
-      ${a.filter(x => isWidgetEnabled(x.id)).length > 0 ? `
+      ${a.filter(x => x.has_widget && isWidgetEnabled(x.id)).length > 0 ? `
       <div class="widget">
         <h3>${t('dashboard.widgets')}</h3>
         <div class="widgets-row" id="dash-widgets">
-          ${a.filter(x => isWidgetEnabled(x.id)).map(w => {
+          ${a.filter(x => x.has_widget && isWidgetEnabled(x.id)).map(w => {
             const wd = state.widgetsData[w.id];
             return `
               <div class="widget-mini" onclick="openApp('${escapeHtml(w.id)}','${w.type}','${w.status}')">
@@ -786,10 +818,18 @@ function renderAppManager() {
           ` : ''}
           <div class="detail-section">
             <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.9rem">
+              <input type="checkbox" onchange="setDashboardEnabled('${escapeHtml(d.id)}',this.checked)" ${isDashboardEnabled(d.id) ? 'checked' : ''}>
+              ${t('apps.show_on_dashboard')}
+            </label>
+          </div>
+          ${d.has_widget ? `
+          <div class="detail-section">
+            <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.9rem">
               <input type="checkbox" onchange="setWidgetEnabled('${escapeHtml(d.id)}',this.checked)" ${isWidgetEnabled(d.id) ? 'checked' : ''}>
               ${t('apps.show_widget')}
             </label>
           </div>
+          ` : ''}
           <div class="detail-section">
             <strong>${t('apps.status')}:</strong>
             <span class="status-badge ${d.status}">${d.status}</span>

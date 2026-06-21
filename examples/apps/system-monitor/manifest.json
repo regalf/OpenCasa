@@ -6,5 +6,6 @@
   "entry": "app.py",
   "type": "widget",
   "autostart": false,
+  "has_widget": true,
   "permissions": ["system:monitor"]
 }
