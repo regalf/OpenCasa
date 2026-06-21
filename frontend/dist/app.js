@@ -601,6 +601,12 @@ function updateDashboardValues() {
         </tr>`).join('');
     }
   }
+  if (s?.network) {
+    const netRx = document.getElementById('net-rx');
+    const netTx = document.getElementById('net-tx');
+    if (netRx) netRx.textContent = formatBytes(s.network.rx_bytes || 0);
+    if (netTx) netTx.textContent = formatBytes(s.network.tx_bytes || 0);
+  }
   const wr = document.getElementById('dash-widgets');
   if (wr) {
     const enabled = a.filter(x => x.has_widget && isWidgetEnabled(x.id));
@@ -634,6 +640,12 @@ function escapeHtml(s) {
 }
 function joinPath(dir, name) {
   return dir.endsWith('/') ? dir + name : dir + '/' + name;
+}
+function formatBytes(b) {
+  if (b >= 1073741824) return (b / 1073741824).toFixed(1) + ' GB';
+  if (b >= 1048576) return (b / 1048576).toFixed(1) + ' MB';
+  if (b >= 1024) return (b / 1024).toFixed(1) + ' KB';
+  return b + ' B';
 }
 const DANGEROUS_PATHS = ['/', '/etc', '/usr', '/var', '/sys', '/proc', '/dev', '/boot', '/root', '/bin', '/sbin', '/lib', '/lib64'];
 function isDangerousPath(p) {
@@ -738,6 +750,9 @@ function renderDashboard() {
   const totalMem = s?.memory ? (s.memory.total / memUnit).toFixed(1) : 0;
   const usedMem = s?.memory ? (s.memory.used / memUnit).toFixed(1) : 0;
   const memPct = s?.memory ? (s.memory.used / s.memory.total * 100) : 0;
+  const net = s?.network || {};
+  const netRx = net.rx_bytes || 0;
+  const netTx = net.tx_bytes || 0;
 
   return `
     <div class="dashboard">
@@ -746,7 +761,7 @@ function renderDashboard() {
       ${(!s && !st && !a) ? `<div class="loading-spinner"></div>` : `
       <div class="grid" id="dash-grid">
         <div class="widget">
-          <h3>${t('dashboard.cpu')}</h3>
+          <h3>${t('dashboard.sysmon')}</h3>
           ${s?.cpu ? `
             <div class="bar-container"><div class="bar blue" id="cpu-bar" style="width:${used}%"></div></div>
             <div class="details">
@@ -755,16 +770,27 @@ function renderDashboard() {
             </div>
             ${s.cpu.model ? `<p class="model">${escapeHtml(s.cpu.model)}</p>` : ''}
           ` : `<p class="dim">${t('dashboard.loading')}</p>`}
-        </div>
-        <div class="widget">
-          <h3>${t('dashboard.memory')}</h3>
           ${s?.memory ? `
-            <div class="bar-container"><div class="bar purple" id="mem-bar" style="width:${memPct}%"></div></div>
-            <div class="details">
-              <span id="mem-detail">${usedMem} / ${totalMem} ${memLabel}</span>
-              <span id="mem-pct">${memPct.toFixed(1)}%</span>
+            <div style="margin-top:.6rem">
+              <div class="bar-container"><div class="bar purple" id="mem-bar" style="width:${memPct}%"></div></div>
+              <div class="details">
+                <span id="mem-detail">${usedMem} / ${totalMem} ${memLabel}</span>
+                <span id="mem-pct">${memPct.toFixed(1)}%</span>
+              </div>
             </div>
-          ` : `<p class="dim">${t('dashboard.loading')}</p>`}
+          ` : ''}
+          ${netRx > 0 || netTx > 0 ? `
+            <div style="margin-top:.6rem;font-size:.8rem">
+              <div class="details">
+                <span class="dim">${t('dashboard.net_rx')}</span>
+                <span id="net-rx">${formatBytes(netRx)}</span>
+              </div>
+              <div class="details">
+                <span class="dim">${t('dashboard.net_tx')}</span>
+                <span id="net-tx">${formatBytes(netTx)}</span>
+              </div>
+            </div>
+          ` : ''}
         </div>
         <div class="widget">
           <h3>${t('dashboard.storage')}</h3>

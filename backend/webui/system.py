@@ -268,13 +268,49 @@ def get_system_stats():
     mem["free"] = max(mem["free"], 0)
     mem["used"] = max(mem["total"] - mem["free"], 0)
 
+    net = _get_network_stats()
+
     return {
         "cpu": cpu,
         "memory": mem,
+        "network": net,
         "uptime": uptime,
         "memory_unit": config.get("ui", {}).get("memory_unit", "GB"),
         "language": config.get("ui", {}).get("language", "en"),
     }
+
+
+def _get_network_stats():
+    """Return total bytes received/transmitted across all non-loopback interfaces."""
+    rx = 0
+    tx = 0
+    obe = _is_openbsd()
+    if obe:
+        for line in _run(["/usr/bin/netstat", "-i", "-b", "-n"]):
+            if line.startswith("lo"):  # skip loopback
+                continue
+            parts = line.split()
+            if len(parts) >= 7 and parts[0] != "Name" and parts[0] != "Interface":
+                try:
+                    rx += int(parts[6])  # Ibytes
+                    tx += int(parts[8])  # Obytes
+                except (ValueError, IndexError):
+                    pass
+    else:
+        for line in _run(["/bin/cat", "/proc/net/dev"]):
+            if ":" in line:
+                iface, data = line.split(":", 1)
+                iface = iface.strip()
+                if iface.startswith("lo"):
+                    continue
+                vals = data.split()
+                if len(vals) >= 9:
+                    try:
+                        rx += int(vals[0])
+                        tx += int(vals[8])
+                    except ValueError:
+                        pass
+    return {"rx_bytes": rx, "tx_bytes": tx}
 
 
 def get_system_info():

@@ -28,6 +28,9 @@
   "nav.logout": "Logout",
 
   "dashboard.title": "Dashboard",
+  "dashboard.sysmon": "Monitor di Sistema",
+  "dashboard.net_rx": "Download",
+  "dashboard.net_tx": "Upload",
   "dashboard.cpu": "CPU",
   "dashboard.cpu_used": "% utilizzato",
   "dashboard.cpu_core": "core @ MHz",
