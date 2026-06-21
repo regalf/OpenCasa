@@ -235,4 +235,4 @@ open http://localhost:80
 
 ## License
 
-MIT
+GNU General Public License v3.0
