@@ -55,9 +55,16 @@ def _ensure_app_user():
         logger.debug("app user '%s' (uid=%d, home=%s)", APP_USER, _APP_USER_UID, _APP_USER_HOME)
     except KeyError:
         logger.info("creating app user '%s'", APP_USER)
-        r = subprocess.run(['useradd', '-m', APP_USER], capture_output=True, text=True)
-        if r.returncode != 0:
-            logger.warning("failed to create user '%s': %s", APP_USER, r.stderr.strip())
+        for cmd in (['useradd', '-m', APP_USER], ['adduser', '-m', APP_USER], ['adduser', APP_USER]):
+            try:
+                r = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+                if r.returncode == 0:
+                    break
+                logger.debug("useradd attempt %s failed: %s", cmd, r.stderr.strip())
+            except (FileNotFoundError, subprocess.TimeoutExpired) as e:
+                logger.debug("useradd attempt %s: %s", cmd, e)
+        else:
+            logger.warning("failed to create user '%s' — tried useradd, adduser", APP_USER)
             return
         pw = pwd.getpwnam(APP_USER)
         _APP_USER_UID = pw.pw_uid
@@ -66,22 +73,29 @@ def _ensure_app_user():
         logger.info("app user '%s' created (uid=%d, home=%s)", APP_USER, _APP_USER_UID, _APP_USER_HOME)
         new_user = True
 
-    # Set password if configured
+    # Set password if configured (via usermod -p with Python crypt hash)
     app_pass = config.get('app_password', '')
     if app_pass:
-        import sys as _sys
         try:
-            cmd = ['chpasswd']
-            if _sys.platform.startswith('openbsd') or _sys.platform == 'openbsd':
-                cmd.append('-a')
-            p = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
-            out, err = p.communicate(input=f'{APP_USER}:{app_pass}'.encode(), timeout=10)
-            if p.returncode == 0:
-                logger.info("password set for app user '%s'", APP_USER)
-            else:
-                logger.warning("failed to set password for '%s': %s", APP_USER, err.decode().strip())
+            import crypt as _crypt
+            import string as _string
+            import random as _random
+            s = '$6$' + ''.join(_random.choice(_string.ascii_letters + _string.digits + './') for _ in range(16))
+            hashed = _crypt.crypt(app_pass, s)
         except Exception as e:
-            logger.warning("could not set password for '%s': %s", APP_USER, e)
+            logger.warning("could not hash password for '%s': %s", APP_USER, e)
+            hashed = None
+        if hashed:
+            for cmd in (['usermod', '-p', hashed, APP_USER], ['pw', 'usermod', '-n', APP_USER, '-p', hashed]):
+                try:
+                    r = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+                    if r.returncode == 0:
+                        logger.info("password set for app user '%s'", APP_USER)
+                        break
+                except (FileNotFoundError, subprocess.TimeoutExpired):
+                    pass
+            else:
+                logger.warning("failed to set password for '%s' — tried usermod", APP_USER)
 
     # Warn if default password is unchanged
     if app_pass == "123456":
