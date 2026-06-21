@@ -508,6 +508,22 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
             delete(self._user_pref_key(data["key"]))
             return self._send_json({"success": True})
 
+        # Change own password
+        if path == "/api/v1/users/password":
+            data = self._json_body()
+            if not data or not data.get("password"):
+                return self._send_error(400, "missing password")
+            if not self._current_user:
+                return self._send_error(401, "unauthorized")
+            from .auth import create_user
+            # delete + recreate
+            from .auth import delete_user
+            delete_user(self._current_user)
+            ok, msg = create_user(self._current_user, data["password"])
+            if not ok:
+                return self._send_error(500, msg)
+            return self._send_json({"success": True})
+
         # Delete user (root only)
         if path.startswith("/api/v1/users/") and path.endswith("/delete"):
             if not self._is_root:

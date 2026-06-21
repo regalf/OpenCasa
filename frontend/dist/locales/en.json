@@ -110,5 +110,12 @@
   "cp.delete_confirm": "Delete user %s?",
   "cp.you": "(you)",
 
-  "error.unauthorized": "Unauthorized"
+  "error.unauthorized": "Unauthorized",
+  "error.unknown": "Unknown error",
+
+  "account.new_password": "New Password",
+  "account.password_placeholder": "New password",
+  "account.confirm_placeholder": "Confirm password",
+  "account.change_password": "Change Password",
+  "account.password_changed": "Password changed"
 }

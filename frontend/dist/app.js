@@ -336,6 +336,67 @@ async function createFile() {
   } catch(e) { state.error = e.message; render(); }
 }
 
+// ── User Account ──
+
+function getAvatarColor(username) {
+  const key = 'avatar_color_' + username;
+  let c = localStorage.getItem(key);
+  if (c) return c;
+  const colors = ['#0ea5e9','#8b5cf6','#22c55e','#f59e0b','#ef4444','#ec4899','#14b8a6','#f97316'];
+  const idx = username.split('').reduce((a,ch) => a + ch.charCodeAt(0), 0) % colors.length;
+  c = colors[idx];
+  localStorage.setItem(key, c);
+  return c;
+}
+
+function toggleAccountModal() {
+  const area = document.getElementById('acc-modal-area');
+  if (area.firstChild) { closeAccountModal(); return; }
+  const d = document.createElement('div');
+  d.id = 'acc-modal-wrapper';
+  d.innerHTML = `
+    <div class="acc-overlay" onclick="if(event.target===this)closeAccountModal()">
+      <div class="acc-modal" id="acc-modal">
+        <h3>${escapeHtml(state.username)}</h3>
+        <label>${t('account.new_password')}</label>
+        <input id="acc-pass" type="password" placeholder="${t('account.password_placeholder')}" />
+        <input id="acc-pass2" type="password" placeholder="${t('account.confirm_placeholder')}" />
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="changePassword()">${t('account.change_password')}</button>
+        </div>
+        <div id="acc-msg" style="font-size:.8rem;margin:.3rem 0"></div>
+        <button class="acc-logout" onclick="logout()">${t('nav.logout')}</button>
+      </div>
+    </div>`;
+  area.appendChild(d);
+  setTimeout(() => document.getElementById('acc-pass')?.focus(), 100);
+}
+
+function closeAccountModal() {
+  const w = document.getElementById('acc-modal-wrapper');
+  if (w) w.remove();
+}
+
+async function changePassword() {
+  const p1 = document.getElementById('acc-pass')?.value;
+  const p2 = document.getElementById('acc-pass2')?.value;
+  const msg = document.getElementById('acc-msg');
+  if (!p1 || p1.length < 4) { msg.textContent = t('setup.pass_short'); msg.style.color = '#f87171'; return; }
+  if (p1 !== p2) { msg.textContent = t('setup.pass_mismatch'); msg.style.color = '#f87171'; return; }
+  try {
+    const r = await api('POST', '/users/password', { password: p1 });
+    if (r && r.success) {
+      msg.textContent = t('account.password_changed'); msg.style.color = '#4ade80';
+      document.getElementById('acc-pass').value = '';
+      document.getElementById('acc-pass2').value = '';
+    } else {
+      msg.textContent = (r && r.error) || t('error.unknown'); msg.style.color = '#f87171';
+    }
+  } catch(e) {
+    msg.textContent = e.message; msg.style.color = '#f87171';
+  }
+}
+
 // ── Apps ──
 
 async function loadApps() {
@@ -741,7 +802,11 @@ function render() {
       `).join('')}
       ` : ''}
       <div class="spacer"></div>
-      <button onclick="logout()">${t('nav.logout')}</button>
+      <button class="sidebar-user" onclick="toggleAccountModal()">
+        <span class="sidebar-user-avatar" style="background:${getAvatarColor(state.username)}">${escapeHtml(state.username[0]||'?').toUpperCase()}</span>
+        <span class="sidebar-user-name">${escapeHtml(state.username)}</span>
+      </button>
+      <div id="acc-modal-area"></div>
     </nav>
     <section class="content">
       ${state.view === 'dashboard' ? renderDashboard() : ''}
