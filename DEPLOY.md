@@ -7,7 +7,10 @@
 | `backend/webui.py` | `/usr/local/webui/webui.py` |
 | `backend/webui/*.py` | `/usr/local/webui/webui/*.py` |
 | `frontend/dist/index.html` | `/usr/local/webui/index.html` |
+| `frontend/dist/style.css` | `/usr/local/webui/style.css` |
+| `frontend/dist/app.js` | `/usr/local/webui/app.js` |
 | `frontend/dist/favicon.svg` | `/usr/local/webui/favicon.svg` |
+| `frontend/dist/locales/` | `/usr/local/webui/locales/` |
 | `opencasa.json.example` | `/etc/opencasa.json` (rinominato) |
 | `scripts/webui` | `/etc/rc.d/webui` |
 
@@ -18,7 +21,10 @@ Dalla macchina di sviluppo (questa):
 scp backend/webui.py utente@mac:~/
 scp -r backend/webui utente@mac:~/webui_pkg/
 scp frontend/dist/index.html utente@mac:~/
+scp frontend/dist/style.css utente@mac:~/
+scp frontend/dist/app.js utente@mac:~/
 scp frontend/dist/favicon.svg utente@mac:~/
+scp -r frontend/dist/locales utente@mac:~/
 scp opencasa.json.example utente@mac:~/
 scp scripts/webui utente@mac:~/
 ```
@@ -28,8 +34,9 @@ Poi su OpenBSD:
 doas mkdir -p /usr/local/webui/apps
 doas mv webui.py /usr/local/webui/
 doas mv webui_pkg /usr/local/webui/webui
-doas mv index.html /usr/local/webui/
+doas mv index.html style.css app.js /usr/local/webui/
 doas mv favicon.svg /usr/local/webui/
+doas mv locales /usr/local/webui/locales
 doas mv webui /etc/rc.d/webui
 doas chmod +x /etc/rc.d/webui
 doas mv opencasa.json.example /etc/opencasa.json
@@ -43,8 +50,9 @@ doas mount /dev/sd0i /mnt
 doas mkdir -p /usr/local/webui/apps
 doas cp /mnt/webui.py /usr/local/webui/
 doas cp -r /mnt/webui /usr/local/webui/webui
-doas cp /mnt/index.html /usr/local/webui/
+doas cp /mnt/index.html /mnt/style.css /mnt/app.js /usr/local/webui/
 doas cp /mnt/favicon.svg /usr/local/webui/
+doas cp -r /mnt/locales /usr/local/webui/locales
 doas cp /mnt/webui_rc /etc/rc.d/webui
 doas chmod +x /etc/rc.d/webui
 doas cp /mnt/opencasa.json.example /etc/opencasa.json
@@ -57,6 +65,8 @@ doas cp /mnt/opencasa.json.example /etc/opencasa.json
 doas mkdir -p /usr/local/webui/apps /usr/local/webui/webui
 ftp -o /usr/local/webui/webui.py http://tua-macchina/webui.py
 ftp -o /usr/local/webui/index.html http://tua-macchina/index.html
+ftp -o /usr/local/webui/style.css http://tua-macchina/style.css
+ftp -o /usr/local/webui/app.js http://tua-macchina/app.js
 ftp -o /usr/local/webui/favicon.svg http://tua-macchina/favicon.svg
 # Scaricare ogni file .py in /usr/local/webui/webui/
 # (oppure tar -czf webui.tgz backend/webui/ e ftp + tar -xz su OpenBSD)

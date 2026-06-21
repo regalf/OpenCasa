@@ -47,7 +47,10 @@ mkdir -p /usr/local/webui/apps
 cp backend/webui.py /usr/local/webui/
 cp -r backend/webui /usr/local/webui/
 cp frontend/dist/index.html /usr/local/webui/
+cp frontend/dist/style.css /usr/local/webui/
+cp frontend/dist/app.js /usr/local/webui/
 cp frontend/dist/favicon.svg /usr/local/webui/
+cp -r frontend/dist/locales /usr/local/webui/locales
 cp scripts/webui /etc/rc.d/webui
 chmod +x /etc/rc.d/webui
 cp opencasa.json.example /etc/opencasa.json
@@ -189,7 +192,7 @@ OpenCasa is optimized for PowerPC G3/G4/G5 (300 MHz–2 GHz, 256 MB–1 GB RAM):
 
 - **No compilation** — interpreted Python only
 - **No npm/node/webpack** — frontend is a single HTML file
-- **No CDN** — zero network requests after initial load
+- **No CDN** — zero network requests after initial load (3 files: HTML + CSS + JS)
 - **No browser-side framework** — vanilla JS, direct DOM manipulation
 - **No Monaco Editor** — replaced with textarea (Monaco is 15+ MB)
 - **No icon HTTP requests** in sidebar — uses CSS letter initials instead
@@ -222,7 +225,10 @@ open http://localhost:80
 │       └── proxy.py          # Web app HTTP proxy
 ├── frontend/
 │   └── dist/
-│       ├── index.html        # Single-page frontend
+│       ├── index.html        # HTML shell
+│       ├── style.css         # Stylesheet
+│       ├── app.js            # Frontend JavaScript
+│       ├── favicon.svg
 │       └── locales/          # Translation files
 ├── examples/
 │   └── apps/                 # Example app manifests & scripts
