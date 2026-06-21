@@ -53,10 +53,13 @@ async function api(method, path, body) {
   }
   if (token) headers['Authorization'] = 'Bearer ' + token;
   const res = await fetch(BASE + path, { method, headers, body });
-  if (res.status === 401) {
-    token = null; localStorage.removeItem('token');
-    state.loggedIn = false; render();
-    throw new Error(t('error.unauthorized'));
+  if (!res.ok) {
+    if (res.status === 401) {
+      token = null; localStorage.removeItem('token');
+      state.loggedIn = false; render();
+    }
+    const err = await res.json().catch(() => ({error: res.statusText}));
+    throw new Error(err.error || res.statusText);
   }
   if (path === '/files/download') return res;
   if (res.headers.get('content-type')?.includes('application/json')) return res.json();
@@ -180,9 +183,11 @@ async function openFile(name) {
 
 async function saveFile() {
   const ta = document.getElementById('editor-textarea');
-  await api('POST', '/files/write', { path: state.editing, content: ta ? ta.value : '' });
-  state.editing = null;
-  loadFiles(state.filePath);
+  try {
+    await api('POST', '/files/write', { path: state.editing, content: ta ? ta.value : '' });
+    state.editing = null;
+    loadFiles(state.filePath);
+  } catch(e) { state.error = e.message; render(); }
 }
 
 function closeEditor() {
@@ -192,8 +197,10 @@ function closeEditor() {
 
 async function deleteFile(name) {
   if (!confirm(t('files.delete_confirm', name))) return;
-  await api('POST', '/files/delete', { path: joinPath(state.filePath, name) });
-  loadFiles(state.filePath);
+  try {
+    await api('POST', '/files/delete', { path: joinPath(state.filePath, name) });
+    loadFiles(state.filePath);
+  } catch(e) { state.error = e.message; render(); }
 }
 
 function uploadFile() {
@@ -246,8 +253,10 @@ function createDir() {
 async function createFile() {
   const name = prompt(t('files.new_file_prompt'));
   if (!name) return;
-  await api('POST', '/files/write', { path: joinPath(state.filePath, name), content: '' });
-  loadFiles(state.filePath);
+  try {
+    await api('POST', '/files/write', { path: joinPath(state.filePath, name), content: '' });
+    loadFiles(state.filePath);
+  } catch(e) { state.error = e.message; render(); }
 }
 
 async function loadApps() {
