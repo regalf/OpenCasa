@@ -35,7 +35,7 @@ DEFAULT_CONFIG = {
     "log": {"level": "info", "file": "/var/log/webui.log"},
     "apps_autostart": True,
     "app_user": "opencasa",
-    "app_password": "",
+    "app_password": "123456",
 }
 
 config = dict(DEFAULT_CONFIG)

@@ -36,6 +36,6 @@
   },
   "apps_dir": "/usr/local/webui/apps",
   "app_user": "opencasa",
-  "app_password": "",
+  "app_password": "123456",
   "master_key": ""
 }

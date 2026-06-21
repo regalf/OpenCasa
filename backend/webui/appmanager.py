@@ -83,6 +83,10 @@ def _ensure_app_user():
         except Exception as e:
             logger.warning("could not set password for '%s': %s", APP_USER, e)
 
+    # Warn if default password is unchanged
+    if app_pass == "123456":
+        logger.warning("DEFAULT PASSWORD for app user '%s' is '123456' — CHANGE IT in opencasa.json (app_password)", APP_USER)
+
 
 def _set_resource_limits():
     import resource
