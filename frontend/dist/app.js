@@ -711,7 +711,6 @@ function renderSetup() {
 }
 
 function renderLogin() {
-  const wa = state.apps.filter(x => isWidgetEnabled(x.id));
   return `
     <div class="login-screen">
       <div class="login-card">
@@ -722,28 +721,6 @@ function renderLogin() {
         <p class="login-error" id="login-error"></p>
         <button onclick="login()">${t('login.submit')}</button>
       </div>
-      ${wa.length > 0 ? `
-      <div class="widget" style="margin-top:1rem">
-        <h3>${t('dashboard.widgets')}</h3>
-        <div class="widgets-row">
-          ${wa.map(w => {
-            const wd = state.widgetsData[w.id];
-            return `
-              <div class="widget-mini" onclick="openApp('${escapeHtml(w.id)}','${w.type}','${w.status}')">
-                <h4>${escapeHtml(w.name)}</h4>
-                ${wd ? Object.entries(wd).map(([k,v]) => {
-                  const lbl = typeof v === 'object' ? (v.label || '') : String(v);
-                  const det = typeof v === 'object' ? (v.detail || '') : '';
-                  return '<div class="widget-row"><span class="widget-label">' + escapeHtml(k) + '</span>' +
-                    '<span class="widget-value">' + escapeHtml(lbl) + '</span></div>' +
-                    (det ? '<div class="widget-detail">' + escapeHtml(det) + '</div>' : '');
-                }).join('') : `<span class="dim">${t('apps.no_widget_data')}</span>`}
-              </div>
-            `;
-          }).join('')}
-        </div>
-      </div>
-      ` : ''}
     </div>
   `;
 }
