@@ -252,6 +252,13 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/v1/auth/check":
+            if not self._current_user:
+                return self._send_error(401, "unauthorized")
+            # Verify user still exists
+            if not self._is_root:
+                from .database import get
+                if not get("_user:" + self._current_user):
+                    return self._send_error(401, "user deleted")
             from .database import get
             avatar = get("_avatar:" + self._current_user) or ""
             return self._send_json({
