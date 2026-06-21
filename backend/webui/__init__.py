@@ -125,10 +125,17 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
             return None
 
     def _get_user(self):
-        header = self.headers.get("Authorization", "")
         token = ""
+        header = self.headers.get("Authorization", "")
         if header.startswith("Bearer "):
             token = header[7:]
+        if not token:
+            cookie = self.headers.get("Cookie", "")
+            for part in cookie.split(";"):
+                part = part.strip()
+                if part.startswith("opencasa_token="):
+                    token = urllib.parse.unquote_plus(part[len("opencasa_token="):])
+                    break
         if not token:
             params = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query))
             token = params.get("token", "")
@@ -309,7 +316,16 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
             passwd = data.get("password", "")
             if user == config["auth"]["username"] and passwd == config["auth"]["password"]:
                 from .auth import make_token
-                return self._send_json({"token": make_token(user), "user": user})
+                token = make_token(user)
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Set-Cookie", "opencasa_token=" + urllib.parse.quote(token) + "; Path=/; SameSite=Lax; HttpOnly")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+                self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+                self.end_headers()
+                self._write(json.dumps({"token": token, "user": user}).encode())
+                return
             return self._send_error(401, "invalid credentials")
 
         # Proxy POST skips auth
