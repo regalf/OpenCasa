@@ -37,7 +37,7 @@
   "dashboard.storage_used": "Usato",
   "dashboard.storage_total": "Totale",
   "dashboard.storage_cap": "%",
-  "dashboard.installed_apps": "App Installate",
+  "dashboard.installed_apps": "App Preferite",
   "dashboard.no_apps": "Nessuna app installata",
   "dashboard.notifications": "Notifiche",
   "dashboard.loading": "Caricamento...",
