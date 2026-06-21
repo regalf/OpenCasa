@@ -123,5 +123,6 @@
   "account.change_password": "Change Password",
   "account.password_changed": "Password changed",
   "account.change_avatar": "Change Avatar",
-  "account.avatar_too_big": "Image too large (max 50KB)"
+  "account.avatar_too_big": "Image too large (max 50KB)",
+  "account.avatar_res_limit": "Max resolution: %s×%s px"
 }

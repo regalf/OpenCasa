@@ -441,22 +441,33 @@ async function uploadAvatar() {
   const file = input?.files?.[0];
   if (!file) return;
   if (file.size > 50 * 1024) { alert(t('account.avatar_too_big')); return; }
-  const reader = new FileReader();
-  reader.onload = async (e) => {
-    const b64 = e.target.result;
-    try {
-      const r = await api('POST', '/users/avatar', { avatar: b64 });
-      if (r && r.success) {
-        state.avatar = b64;
-        const prev = document.getElementById('acc-avatar-preview');
-        if (prev) {
-          prev.outerHTML = `<img id="acc-avatar-preview" src="${escapeHtml(b64)}" alt="" style="width:40px;height:40px;border-radius:50%;object-fit:cover" />`;
-        }
-        render();
+  const img = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = () => reject(new Error('invalid image'));
+      i.src = reader.result;
+    };
+    reader.onerror = () => reject(new Error('read failed'));
+    reader.readAsDataURL(file);
+  });
+  if (img.width > 128 || img.height > 128) {
+    alert(t('account.avatar_res_limit', 128));
+    return;
+  }
+  const b64 = img.src;
+  try {
+    const r = await api('POST', '/users/avatar', { avatar: b64 });
+    if (r && r.success) {
+      state.avatar = b64;
+      const prev = document.getElementById('acc-avatar-preview');
+      if (prev) {
+        prev.outerHTML = `<img id="acc-avatar-preview" src="${escapeHtml(b64)}" alt="" style="width:40px;height:40px;border-radius:50%;object-fit:cover" />`;
       }
-    } catch(e) { state.error = e.message; render(); }
-  };
-  reader.readAsDataURL(file);
+      render();
+    }
+  } catch(e) { state.error = e.message; render(); }
 }
 
 // ── Apps ──
