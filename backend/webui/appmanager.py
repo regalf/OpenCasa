@@ -170,11 +170,11 @@ def _set_password_via_pty(user, password):
                     break
                 buf += data
                 low = buf.lower()
-                if sent == 0 and (b'password:' in low or b'new password' in low or b'current' in low):
+                if sent == 0 and b'password' in low:
                     os.write(fd, (password + '\n').encode())
                     sent = 1
                     buf = b''
-                elif sent == 1 and (b'again' in low or b're-enter' in low or b'confirm' in low):
+                elif sent == 1 and (b'password' in low or b'again' in low or b're-enter' in low or b'confirm' in low or b'retype' in low):
                     os.write(fd, (password + '\n').encode())
                     sent = 2
                     buf = b''
