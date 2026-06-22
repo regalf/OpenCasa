@@ -288,16 +288,10 @@ def _list_interfaces():
     ifaces = []
     obe = _is_openbsd()
     if obe:
-        seen = set()
-        for line in _run(["/usr/bin/netstat", "-i", "-b", "-n"]):
-            parts = line.split()
-            if len(parts) < 7:
-                continue
-            name = parts[0]
-            if name in ("Name", "Interface") or name.startswith("lo") or name in seen:
-                continue
-            seen.add(name)
-            ifaces.append(name)
+        for line in _run(["/sbin/ifconfig", "-l"]):
+            line = line.strip()
+            if not line.startswith("lo"):
+                ifaces.append(line)
     else:
         try:
             with open("/proc/net/dev") as f:
