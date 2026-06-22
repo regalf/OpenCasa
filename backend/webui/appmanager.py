@@ -325,6 +325,18 @@ def get_widget_data(app_id):
     return None
 
 
+def _count_running():
+    """Return number of alive web app processes."""
+    alive = 0
+    with _cache_lock:
+        for pid in list(_running.keys()):
+            if not _alive(pid):
+                _running.pop(pid, None)
+            else:
+                alive += 1
+    return alive
+
+
 def start_web_app(app_id):
     app = get_app(app_id)
     if not app:
@@ -339,6 +351,10 @@ def start_web_app(app_id):
 
     if not app_user_ready():
         return {'error': 'app_user_missing', 'app_user': APP_USER}
+
+    max_proc = config.get('apps', {}).get('max_processes', 10)
+    if _count_running() >= max_proc:
+        return {'error': f'max processes ({max_proc}) reached'}
 
     # Permission confirmation check — skip if no permissions required
     if app['permissions'] and not is_app_confirmed(app_id, app['permissions']):
@@ -415,6 +431,11 @@ def uninstall_app(app_id):
 
 
 def _autostart_web_apps():
+    max_proc = config.get('apps', {}).get('max_processes', 10)
+    started = 0
     for app in list_apps()["apps"]:
+        if started >= max_proc:
+            break
         if app['autostart'] and app['type'] == 'web' and app['status'] == 'stopped':
             threading.Thread(target=lambda aid=app['id']: start_web_app(aid), daemon=True).start()
+            started += 1

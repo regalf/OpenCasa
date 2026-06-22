@@ -37,6 +37,7 @@ DEFAULT_CONFIG = {
     "apps_autostart": True,
     "app_user": "opencasa",
     "app_password": "123456",
+    "apps": {"max_processes": 10},
 }
 
 import copy

@@ -37,5 +37,8 @@
   "apps_dir": "/usr/local/webui/apps",
   "app_user": "opencasa",
   "app_password": "123456",
+  "apps": {
+    "max_processes": 10
+  },
   "master_key": ""
 }
