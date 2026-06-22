@@ -400,6 +400,6 @@ def uninstall_app(app_id):
 
 
 def _autostart_web_apps():
-    for app in list_apps():
+    for app in list_apps()["apps"]:
         if app['autostart'] and app['type'] == 'web' and app['status'] == 'stopped':
             threading.Thread(target=lambda aid=app['id']: start_web_app(aid), daemon=True).start()
