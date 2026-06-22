@@ -922,19 +922,19 @@ function render() {
   // Tamper overlay — shown on top of everything
   if (state.tampered) {
     const sp = state.tamperLoading ? 'disabled' : '';
-    app.innerHTML = \`
+    app.innerHTML = `
       <div class="tamper-overlay">
         <div class="tamper-box">
-          <h2>\${t('auth.tamper_title')}</h2>
-          <p>\${t('auth.tamper_desc')}</p>
+          <h2>${t('auth.tamper_title')}</h2>
+          <p>${t('auth.tamper_desc')}</p>
           <div style="margin-top:1.5rem">
-            <input id="tamper-old-pass" type="password" placeholder="\${t('auth.old_root_password')}" style="width:100%;padding:.6rem;margin-bottom:.5rem;background:#1e293b;color:#f1f5f9;border:1px solid #7f1d1d;border-radius:6px;box-sizing:border-box">
-            <button class="btn btn-danger" style="width:100%" onclick="verifyRootChange()" \${sp}>\${state.tamperLoading ? t('app.loading') : t('auth.verify')}</button>
+            <input id="tamper-old-pass" type="password" placeholder="${t('auth.old_root_password')}" style="width:100%;padding:.6rem;margin-bottom:.5rem;background:#1e293b;color:#f1f5f9;border:1px solid #7f1d1d;border-radius:6px;box-sizing:border-box">
+            <button class="btn btn-danger" style="width:100%" onclick="verifyRootChange()" ${sp}>${state.tamperLoading ? t('app.loading') : t('auth.verify')}</button>
           </div>
-          \${state.tamperError ? '<p style="color:#fca5a5;margin-top:.5rem">' + escapeHtml(state.tamperError) + '</p>' : ''}
+          ${state.tamperError ? '<p style="color:#fca5a5;margin-top:.5rem">' + escapeHtml(state.tamperError) + '</p>' : ''}
         </div>
       </div>
-    \`;
+    `;
     return;
   }
 
