@@ -325,7 +325,7 @@ def _get_network_stats(iface_filter=""):
                 continue
             try:
                 rx += int(parts[6])  # Ibytes
-                tx += int(parts[8])  # Obytes
+                tx += int(parts[9])  # Obytes
             except (ValueError, IndexError):
                 pass
     else:
