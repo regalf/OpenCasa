@@ -83,10 +83,10 @@ def _ensure_app_user():
 
 
 def _set_app_password(password):
-    """Set password for APP_USER using passwd via pty (works on Linux, OpenBSD, macOS)."""
+    """Set password for APP_USER trying multiple methods (Linux, OpenBSD, macOS)."""
     user = APP_USER
 
-    # Try chpasswd (Linux) as a quick path
+    # 1) chpasswd (Linux)
     try:
         p = subprocess.Popen(['chpasswd'], stdin=subprocess.PIPE, stderr=subprocess.PIPE)
         p.communicate(input=f'{user}:{password}'.encode(), timeout=10)
@@ -96,7 +96,48 @@ def _set_app_password(password):
     except (FileNotFoundError, subprocess.TimeoutExpired):
         pass
 
-    # Use passwd via pty (works everywhere including OpenBSD)
+    # 2) openssl + usermod (Linux)
+    for flag in ('-6', '-1'):
+        try:
+            r = subprocess.run(['openssl', 'passwd', flag, password],
+                               capture_output=True, text=True, timeout=10)
+            if r.returncode != 0 or not r.stdout.strip():
+                continue
+            hashed = r.stdout.strip()
+            for cmd in (['usermod', '-p', hashed, user],
+                        ['chpass', '-a', hashed, user]):
+                try:
+                    r2 = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+                    if r2.returncode == 0:
+                        logger.info("password set for '%s' via %s", user, cmd[0])
+                        return True
+                except (FileNotFoundError, subprocess.TimeoutExpired):
+                    continue
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            continue
+
+    # 3) encrypt + usermod (OpenBSD)
+    for enc_cmd in (['encrypt', '-b', '8'], ['encrypt']):
+        try:
+            r = subprocess.run(enc_cmd, input=f'{password}\n'.encode(),
+                               capture_output=True, text=False, timeout=10)
+            if r.returncode != 0 or not r.stdout.strip():
+                continue
+            hashed = r.stdout.decode('ascii', errors='replace').strip()
+            for cmd in (['usermod', '-p', hashed, user],
+                        ['chpass', '-a', hashed, user]):
+                try:
+                    r2 = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+                    if r2.returncode == 0:
+                        logger.info("password set for '%s' via %s+%s",
+                                    user, enc_cmd[0], cmd[0])
+                        return True
+                except (FileNotFoundError, subprocess.TimeoutExpired):
+                    continue
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            continue
+
+    # 4) passwd via pty (fallback, works on most Unix)
     try:
         _set_password_via_pty(user, password)
         logger.info("password set for '%s' via passwd (pty)", user)
