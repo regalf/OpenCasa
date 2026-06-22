@@ -1154,20 +1154,18 @@ function renderDashboard() {
               </div>
             </div>
           ` : ''}
-          ${netRx > 0 || netTx > 0 ? `
-            <div style="margin-top:.6rem;font-size:.8rem">
-              <div class="details">
-                <span class="dim">${t('dashboard.net_rx')}</span>
-                <span id="net-rx">${formatBytes(netRx)}</span>
-                <span id="net-rx-rate" class="dim" style="margin-left:.3rem"></span>
-              </div>
-              <div class="details">
-                <span class="dim">${t('dashboard.net_tx')}</span>
-                <span id="net-tx">${formatBytes(netTx)}</span>
-                <span id="net-tx-rate" class="dim" style="margin-left:.3rem"></span>
-              </div>
+          <div style="margin-top:.6rem;font-size:.8rem">
+            <div class="details">
+              <span class="dim">${t('dashboard.net_rx')}</span>
+              <span id="net-rx">${netRx ? formatBytes(netRx) : '—'}</span>
+              <span id="net-rx-rate" class="dim" style="margin-left:.3rem"></span>
             </div>
-          ` : ''}
+            <div class="details">
+              <span class="dim">${t('dashboard.net_tx')}</span>
+              <span id="net-tx">${netTx ? formatBytes(netTx) : '—'}</span>
+              <span id="net-tx-rate" class="dim" style="margin-left:.3rem"></span>
+            </div>
+          </div>
         </div>
         <div class="widget">
           <h3>${t('dashboard.storage')}</h3>
