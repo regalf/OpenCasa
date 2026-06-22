@@ -73,49 +73,14 @@ def _ensure_app_user():
         logger.info("app user '%s' created (uid=%d, home=%s)", APP_USER, _APP_USER_UID, _APP_USER_HOME)
         new_user = True
 
-    # Set password if configured
-    app_pass = config.get('app_password', '')
-    if app_pass:
-        pw_set = _set_app_password(app_pass)
+    # Set password only on first creation (not every boot)
+    if new_user:
+        app_pass = config.get('app_password', '')
+        if app_pass:
+            _set_app_password(app_pass)
+        if app_pass == "123456":
+            logger.warning("DEFAULT PASSWORD for app user '%s' is '123456' — CHANGE IT in opencasa.json (app_password)", APP_USER)
 
-    # Warn if default password is unchanged
-    if app_pass == "123456":
-        logger.warning("DEFAULT PASSWORD for app user '%s' is '123456' — CHANGE IT in opencasa.json (app_password)", APP_USER)
-
-
-def _set_app_password(password):
-    """Set password for APP_USER by trying multiple methods."""
-    user = APP_USER
-    # 1) chpasswd (Linux: echo 'user:pass' | chpasswd)
-    try:
-        p = subprocess.Popen(['chpasswd'], stdin=subprocess.PIPE, stderr=subprocess.PIPE)
-        out, err = p.communicate(input=f'{user}:{password}'.encode(), timeout=10)
-        if p.returncode == 0:
-            logger.info("password set for '%s' via chpasswd", user)
-            return True
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        pass
-
-    # 2) Generate hash via openssl, then try usermod/chpass/pw
-    for flag in ('-1', '-6'):
-        try:
-            r = subprocess.run(['openssl', 'passwd', flag, password],
-                               capture_output=True, text=True, timeout=10)
-            if r.returncode != 0:
-                continue
-            hashed = r.stdout.strip()
-            for cmd in (['usermod', '-p', hashed, user],
-                        ['pw', 'usermod', '-n', user, '-p', hashed],
-                        ['chpass', '-a', hashed, user]):
-                try:
-                    r2 = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
-                    if r2.returncode == 0:
-                        logger.info("password set for '%s' via %s", user, cmd[0])
-                        return True
-                except (FileNotFoundError, subprocess.TimeoutExpired):
-                    continue
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            continue
 
 def _set_app_password(password):
     """Set password for APP_USER using passwd via pty (works on Linux, OpenBSD, macOS)."""
