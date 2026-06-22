@@ -22,7 +22,7 @@
 
 | System | Status | Notes |
 |--------|--------|-------|
-| OpenBSD/macppc (G3/G4/G5) | Primary target | Testato su iMac G3 600 MHz, 384 MB RAM |
+| OpenBSD/macppc (G3/G4/G5) | Primary target | Tested on iMac G3 600 MHz, 384 MB RAM |
 | Linux (x86_64, arm, etc.) | Works | Uses `/proc/` for stats |
 | Any Unix with Python 3 | Should work | BSDs, macOS (not heavily tested) |
 
