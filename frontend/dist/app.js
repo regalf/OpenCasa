@@ -1178,7 +1178,7 @@ function renderAppManager() {
             <img class="app-card-icon" src="/api/v1/apps/${encodeURIComponent(app.id)}/icon" alt="" onerror="this.style.display='none'"/>
             <div class="app-card-icon-placeholder" style="${app.icon ? 'display:none' : ''}">${escapeHtml(app.name[0] || '?')}</div>
             <span class="app-card-name">${escapeHtml(app.name)}</span>
-            <div style="display:flex;justify-content:center"><span class="app-card-type ${app.type}">${app.type}</span></div>
+            <span class="app-card-type ${app.type}">${app.type}</span>
             ${app.status === 'running' ? `<span class="app-card-status running">● ${t('apps.running')}</span>` : ''}
           </div>`).join('')}
       </div>
