@@ -287,11 +287,12 @@ def _list_interfaces():
     """Return list of non-loopback interface names."""
     ifaces = []
     obe = _is_openbsd()
+    skip_if = ("lo", "enc", "pflog", "pfsync")
     if obe:
         for line in _run(["/sbin/ifconfig", "-a"]):
             if ":" in line and not line.startswith("\t") and not line.startswith(" "):
                 name = line.split(":", 1)[0].strip()
-                if name and not name.startswith("lo"):
+                if name and not name.startswith(skip_if):
                     ifaces.append(name)
     else:
         try:
@@ -312,20 +313,29 @@ def _get_network_stats(iface_filter=""):
     tx = 0
     obe = _is_openbsd()
     if obe:
+        lines = _run(["/usr/bin/netstat", "-i", "-b", "-n"])
+        ib_col = 6
+        ob_col = 9
+        if lines:
+            hdr = lines[0].split()
+            if "Ibytes" in hdr:
+                ib_col = hdr.index("Ibytes")
+                ob_col = hdr.index("Obytes") if "Obytes" in hdr else ib_col + 1
+        skip_names = ("Name", "Interface", "Address")
         seen = set()
-        for line in _run(["/usr/bin/netstat", "-i", "-b", "-n"]):
+        for line in lines:
             parts = line.split()
-            if len(parts) < 7:
+            if len(parts) <= max(ib_col, ob_col):
                 continue
-            name = parts[0]
-            if name in ("Name", "Interface") or name.startswith("lo") or name in seen:
+            name = parts[0].rstrip("*")
+            if name in skip_names or name.startswith("lo") or name in seen:
                 continue
             seen.add(name)
             if iface_filter and name != iface_filter:
                 continue
             try:
-                rx += int(parts[6])  # Ibytes
-                tx += int(parts[9])  # Obytes
+                rx += int(parts[ib_col])
+                tx += int(parts[ob_col])
             except (ValueError, IndexError):
                 pass
     else:
