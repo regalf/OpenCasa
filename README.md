@@ -165,7 +165,6 @@ If the user is missing, the Apps tab shows a warning banner and app execution is
 
 - **OpenBSD app execution**: apps run as root (privilege dropping via `os.setuid()` is not reliable on all OpenBSD versions/configurations). Permission confirmations are still enforced.
 - **No HTTPS in daemon**: terminate behind nginx/haproxy for TLS.
-- **No test suite**: backend has no automated tests.
 - **No package-lock.json**: frontend dependency versions are not locked (Svelte/Vite build only needed for development, not deployment).
 - **Config save is not fully atomic**: uses `os.replace()` which is atomic on most filesystems but not guaranteed on all.
 

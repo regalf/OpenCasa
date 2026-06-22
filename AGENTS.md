@@ -106,7 +106,7 @@ examples/apps/                  # Example app manifests + scripts
 
 ### LOW — Improvements
 
-17. **No test suite** — No unit or integration tests exist.
+17. ~~**No test suite** — No unit or integration tests exist.~~ `[FIXED]` — 61 unit tests in `tests/` using `unittest`.
 18. **No `package-lock.json`** — Frontend dependency versions are not locked.
 19. ~~**Widget cache TTL is 30s but dashboard polled every 5s**~~ `[FIXED]` — dashboard now polls every 30s.
 20. ~~**`notifications.py:32` — Notification ID uses `strftime("%H%M%S.%f")` which can collide on rapid pushes.**~~ `[FIXED]`
