@@ -223,6 +223,18 @@ Optimized for PowerPC G3/G4/G5 (300 MHz–2 GHz, 256 MB–1 GB RAM):
 - Targeted DOM updates — avoids full re-render on auto-refresh
 - Partial API resilience — one failed endpoint doesn't break the page
 
+## Tests
+
+```sh
+# Run all tests (no server needed — uses temp dirs and mocks)
+python3 -m unittest discover -s tests -v
+
+# Or with the runner script
+./tests/run.sh
+```
+
+I test sono unit test puri (nessuna dipendenza esterna). Usano `unittest` (stdlib) e creano directory temporanee isolate — non toccano l'istanza in esecuzione ne' i file di sistema.
+
 ## Development
 
 ```sh
