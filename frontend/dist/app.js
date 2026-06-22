@@ -345,7 +345,7 @@ function showPermissionConfirm(permissions, appId, onConfirm) {
       </div>
       <div class="btn-row">
         <button class="btn btn-danger" onclick="closePermissionConfirm()">${t('apps.cancel')}</button>
-        <button class="btn btn-primary" style="flex:1" onclick="closePermissionConfirm();(window._permOnConfirm||function(){})()">${t('apps.perm_accept')}</button>
+        <button class="btn btn-primary" style="flex:1" onclick="(window._permOnConfirm||function(){})();closePermissionConfirm()">${t('apps.perm_accept')}</button>
       </div>
     </div>`;
   document.body.appendChild(d);
@@ -558,7 +558,16 @@ async function runApp(id) {
 }
 
 async function startWebApp(id) {
-  await api('POST','/apps/' + encodeURIComponent(id) + '/start');
+  const res = await api('POST', '/apps/' + encodeURIComponent(id) + '/start');
+  if (res && res.error === 'permission_required') {
+    showPermissionConfirm(res.permissions || [], id, async () => {
+      await api('POST', '/apps/' + encodeURIComponent(id) + '/confirm');
+      state._confirmedPerms = state._confirmedPerms || {};
+      state._confirmedPerms[id] = true;
+      startWebApp(id);
+    });
+    return;
+  }
   showAppDetail(id);
   loadApps();
 }
