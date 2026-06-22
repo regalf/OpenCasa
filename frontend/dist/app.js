@@ -61,10 +61,12 @@ async function api(method, path, body) {
     body = JSON.stringify(body);
   }
   if (token) headers['Authorization'] = 'Bearer ' + token;
-  const ac = new AbortController();
-  const to = setTimeout(() => ac.abort(), 10000);
+  const ac = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const to = ac ? setTimeout(() => ac.abort(), 10000) : null;
   try {
-    const res = await fetch(BASE + path, { method, headers, body, signal: ac.signal });
+    const opts = { method, headers, body };
+    if (ac) opts.signal = ac.signal;
+    const res = await fetch(BASE + path, opts);
     if (!res.ok) {
       if (res.status === 401) {
         token = null; localStorage.removeItem('token');
@@ -78,7 +80,7 @@ async function api(method, path, body) {
     const text = await res.text();
     try { return JSON.parse(text); } catch(e) { return text; }
   } finally {
-    clearTimeout(to);
+    if (to) clearTimeout(to);
   }
 }
 
@@ -125,18 +127,19 @@ async function checkUser() {
   const errEl = document.getElementById('login-error');
   if (!user) { if(errEl) errEl.textContent = ''; return; }
   try {
-    const ac = new AbortController();
-    const to = setTimeout(() => ac.abort(), 10000);
+    const ac = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const to = ac ? setTimeout(() => ac.abort(), 10000) : null;
     let res;
     try {
-      res = await fetch(BASE + '/users/check', {
+      const opts = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: user }),
-        signal: ac.signal,
-      }).then(r => r.json());
+      };
+      if (ac) opts.signal = ac.signal;
+      res = await fetch(BASE + '/users/check', opts).then(r => r.json());
     } finally {
-      clearTimeout(to);
+      if (to) clearTimeout(to);
     }
     if (res.exists) {
       state.loginPhase = 2;
