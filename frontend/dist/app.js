@@ -316,7 +316,16 @@ function uploadFile() {
     xhr.upload.onprogress = e => {
       if (e.lengthComputable) {
         state.uploadProgress = Math.round((e.loaded / e.total) * 100);
-  render();
+        render();
+      }
+    };
+    xhr.onload = () => { state.uploadProgress = -1; loadFiles(state.filePath); };
+    xhr.onerror = () => { state.uploadProgress = -1; render(); };
+    xhr.open('POST', BASE + '/files/upload');
+    xhr.setRequestHeader('Authorization', 'Bearer ' + token);
+    xhr.send(form);
+  };
+  input.click();
 }
 
 function showPermissionConfirm(permissions, appId, onConfirm) {
@@ -345,15 +354,6 @@ function closePermissionConfirm() {
   const el = document.getElementById('perm-confirm-overlay');
   if (el) el.remove();
   window._permOnConfirm = null;
-}
-    };
-    xhr.onload = () => { state.uploadProgress = -1; loadFiles(state.filePath); };
-    xhr.onerror = () => { state.uploadProgress = -1; render(); };
-    xhr.open('POST', BASE + '/files/upload');
-    xhr.setRequestHeader('Authorization', 'Bearer ' + token);
-    xhr.send(form);
-  };
-  input.click();
 }
 
 async function downloadFile(name) {
