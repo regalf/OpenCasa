@@ -22,6 +22,7 @@ _APP_USER_HOME = None
 
 _cache = []
 _cache_lock = threading.Lock()
+_cache_ts = 0.0
 _running = {}
 _logs = {}
 _widget_cache = {}
@@ -86,12 +87,20 @@ def _set_resource_limits():
 
 
 def _app_preexec():
-    if _APP_USER_UID is not None and _APP_USER_GID is not None:
-        os.initgroups(APP_USER, _APP_USER_GID)
-        os.setgid(_APP_USER_GID)
-        os.setuid(_APP_USER_UID)
-    os.setpgrp()
-    _set_resource_limits()
+    try:
+        if _APP_USER_UID is not None and _APP_USER_GID is not None:
+            if hasattr(os, 'initgroups'):
+                try: os.initgroups(APP_USER, _APP_USER_GID)
+                except Exception: pass
+            try: os.setgid(_APP_USER_GID)
+            except Exception: pass
+            try: os.setuid(_APP_USER_UID)
+            except Exception: pass
+        try: os.setpgrp()
+        except Exception: pass
+        _set_resource_limits()
+    except Exception:
+        pass
 
 
 def _safe_id(name):
@@ -99,7 +108,10 @@ def _safe_id(name):
 
 
 def scan_all():
-    global _cache
+    global _cache, _cache_ts
+    now = time.time()
+    if now - _cache_ts < 3.0 and _cache:
+        return _cache
     apps = []
     try:
         for entry in sorted(os.listdir(APPS_DIR)):
@@ -138,6 +150,7 @@ def scan_all():
 
     with _cache_lock:
         _cache = apps
+        _cache_ts = now
         for pid in list(_running.keys()):
             info = _running[pid]
             for a in _cache:
@@ -218,8 +231,8 @@ def run_app(app_id):
     if not app_user_ready():
         return {'error': 'app_user_missing', 'app_user': APP_USER}
 
-    # Permission confirmation check
-    if not is_app_confirmed(app_id, app['permissions']):
+    # Permission confirmation check — skip if no permissions required
+    if app['permissions'] and not is_app_confirmed(app_id, app['permissions']):
         return {'error': 'permission_required', 'permissions': app['permissions']}
 
     port = config.get('server', {}).get('port', 80)
@@ -327,8 +340,8 @@ def start_web_app(app_id):
     if not app_user_ready():
         return {'error': 'app_user_missing', 'app_user': APP_USER}
 
-    # Permission confirmation check
-    if not is_app_confirmed(app_id, app['permissions']):
+    # Permission confirmation check — skip if no permissions required
+    if app['permissions'] and not is_app_confirmed(app_id, app['permissions']):
         return {'error': 'permission_required', 'permissions': app['permissions']}
 
     port = config.get('server', {}).get('port', 80)

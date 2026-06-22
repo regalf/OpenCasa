@@ -39,5 +39,5 @@ def push_notification(app_id, title, message, severity="info"):
     }
     with notif_lock:
         notifications.append(n)
-        save_notifications()
+    save_notifications()
     return n

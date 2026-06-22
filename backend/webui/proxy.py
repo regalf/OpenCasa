@@ -20,30 +20,40 @@ def handle_app_proxy(handler, path):
         return handler._send_error(404, "app not found")
     if app.get("status") != "running":
         return handler._send_error(503, "app not running")
-    target_port = app.get("port", 8081)
+    target_port = app.get("port", 0)
+    if not target_port:
+        return handler._send_error(502, "no port configured in app manifest")
     rest = parts[3] if len(parts) > 3 else ""
     target_url = f"http://127.0.0.1:{target_port}/{rest}"
     qs = urllib.parse.urlparse(handler.path).query
     if qs:
         target_url += "?" + qs
 
+    body = handler._read_body() if handler.command == "POST" else None
+    max_size = (config.get("filesystem", {}) or {}).get("max_upload_size", 100) * 1024 * 1024
+    if body and len(body) > max_size:
+        return handler._send_error(413, "request body too large")
+
     req = urllib.request.Request(
         target_url,
-        data=handler._read_body() if handler.command == "POST" else None,
+        data=body,
         headers={k: v for k, v in handler.headers.items() if k.lower() not in ("host",)},
         method=handler.command,
     )
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
             handler.send_response(resp.status)
+            handler.send_header("Access-Control-Allow-Origin", "*")
             for k, v in resp.headers.items():
-                if k.lower() not in ("transfer-encoding",):
+                if k.lower() not in ("transfer-encoding", "access-control-allow-origin"):
                     handler.send_header(k, v)
             handler.end_headers()
             handler.wfile.write(resp.read())
     except urllib.error.HTTPError as e:
         handler.send_response(e.code)
+        handler.send_header("Content-Type", "text/plain")
         handler.end_headers()
-        handler.wfile.write(e.read())
+        body = e.read()
+        handler.wfile.write(body if isinstance(body, bytes) else body.encode())
     except Exception as e:
         handler._send_error(502, str(e))

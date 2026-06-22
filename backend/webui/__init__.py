@@ -8,6 +8,7 @@ import argparse
 import base64
 import json
 import logging
+import time
 import mimetypes
 import os
 import signal
@@ -38,12 +39,16 @@ DEFAULT_CONFIG = {
     "app_password": "123456",
 }
 
-config = dict(DEFAULT_CONFIG)
+import copy
+config = copy.deepcopy(DEFAULT_CONFIG)
 CONFIG_PATH = None
 
 DATA_DIR = "/usr/local/webui"
 APPS_FILE = None
 NOTIF_FILE = None
+
+_login_attempts = {}
+_login_lock = threading.Lock()
 
 
 def set_data_dir(path):
@@ -159,6 +164,10 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
             return False
         self._current_user = payload.get("username")
         self._is_root = payload.get("is_root", False)
+        from .database import get as _get
+        if _get("_root_tamper") == "true":
+            self._send_error(403, "root_tamper")
+            return False
         return True
 
     def _serve_static(self, path):
@@ -250,6 +259,11 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
             from .auth import user_count
             return self._send_json({"setup_needed": user_count() == 0})
 
+        # Auth status — no auth required (used by frontend before login)
+        if path == "/api/v1/auth/status":
+            from .database import get as _get
+            return self._send_json({"tamper": _get("_root_tamper") == "true"})
+
         if not self._check_auth():
             return
 
@@ -320,6 +334,9 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
                 action = parts[1] if len(parts) > 1 else ""
                 from .appmanager import get_app, get_logs, get_widget_data
                 if not action:
+                    from .appmanager import _safe_id
+                    if not _safe_id(app_id):
+                        return self._send_error(400, "invalid app id")
                     app = get_app(app_id)
                     if not app:
                         return self._send_error(404, "app not found")
@@ -365,6 +382,16 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
         params = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query))
 
         if path == "/api/v1/auth/login":
+            ip = self.client_address[0]
+            with _login_lock:
+                now = time.time()
+                attempts = _login_attempts.get(ip, [])
+                attempts = [t for t in attempts if now - t < 300]
+                if len(attempts) >= 10:
+                    return self._send_error(429, "too many login attempts, try again later")
+                attempts.append(now)
+                _login_attempts[ip] = attempts
+
             data = self._json_body()
             if not data:
                 return self._send_error(400, "invalid body")
@@ -373,6 +400,8 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
             from .auth import authenticate
             user_info = authenticate(config, username, passwd)
             if user_info:
+                with _login_lock:
+                    _login_attempts.pop(ip, None)
                 from .auth import make_token
                 token = make_token(user_info["username"], user_info["is_root"])
                 self.send_response(200)
@@ -444,6 +473,25 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
                 if av:
                     avatar = av
             return self._send_json({"exists": exists, "avatar": avatar, "name": username})
+
+        # Verify root password change — no auth required (tamper recovery)
+        if path == "/api/v1/auth/verify-root-change":
+            data = self._json_body()
+            if not data or not data.get("password"):
+                return self._send_error(400, "missing password")
+            from .database import get as _get, set as _set, delete as _del
+            from .auth import verify_password
+            prev_hash = _get("_root_password_previous")
+            if not prev_hash:
+                return self._send_error(400, "no previous root password stored")
+            if verify_password(data["password"], prev_hash):
+                pending = _get("_root_pending_hash")
+                if pending:
+                    _set("_root_password_previous", pending)
+                _del("_root_tamper")
+                _del("_root_pending_hash")
+                return self._send_json({"success": True})
+            return self._send_error(403, "incorrect password")
 
         if not self._check_auth():
             return
@@ -547,14 +595,26 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
             data = self._json_body()
             if not data or not data.get("password"):
                 return self._send_error(400, "missing password")
+            if not data.get("current_password"):
+                return self._send_error(400, "missing current_password")
             if not self._current_user:
                 return self._send_error(401, "unauthorized")
-            from .auth import create_user
-            from .auth import delete_user
-            delete_user(self._current_user)
-            ok, msg = create_user(self._current_user, data["password"])
-            if not ok:
-                return self._send_error(500, msg)
+            from .auth import authenticate, hash_password
+            if not authenticate(config, self._current_user, data["current_password"]):
+                return self._send_error(403, "current password does not match")
+            if self._is_root:
+                config["auth"]["root_password"] = hash_password(data["password"])
+                save_config()
+                from .database import set as _set, delete as _del
+                _set("_root_password_previous", config["auth"]["root_password"])
+                _del("_root_tamper")
+                _del("_root_pending_hash")
+            else:
+                from .auth import create_user, delete_user
+                delete_user(self._current_user)
+                ok, msg = create_user(self._current_user, data["password"])
+                if not ok:
+                    return self._send_error(500, msg)
             return self._send_json({"success": True})
 
         # Upload avatar
@@ -624,7 +684,7 @@ def main():
     os.makedirs(DATA_DIR, exist_ok=True)
     os.makedirs(os.path.join(DATA_DIR, "apps"), exist_ok=True)
 
-    if os.geteuid() != 0:
+    if os.geteuid() != 0 and not args.debug:
         logging.error("OpenCasa must be run as root — app security features require root privileges")
         sys.exit(1)
 
@@ -647,12 +707,44 @@ def main():
         save_config()
         logging.info("generated new master key")
         kw = len(config["master_key"]) + 2
-        sys.stdout.write(f"\n  ⚠  MASTER KEY (save it in a safe place):\n")
+        sys.stdout.write(f"\n  *** MASTER KEY (save it in a safe place):\n")
         sys.stdout.write(f"  ┌{'─'*kw}┐\n")
         sys.stdout.write(f"  │ {config['master_key']} │\n")
         sys.stdout.write(f"  └{'─'*kw}┘\n")
         sys.stdout.write(f"  Already saved in {CONFIG_PATH}\n\n")
         sys.stdout.flush()
+
+    if config["auth"]["jwt_secret"] == DEFAULT_CONFIG["auth"]["jwt_secret"]:
+        config["auth"]["jwt_secret"] = base64.b64encode(os.urandom(32)).decode()
+        save_config()
+        logging.info("generated new JWT secret (replaced default)")
+
+    rp = config["auth"].get("root_password", "")
+    if rp:
+        try:
+            raw = base64.b64decode(rp)
+            already_hashed = len(raw) == 48
+        except Exception:
+            already_hashed = False
+        if not already_hashed:
+            if rp == DEFAULT_CONFIG["auth"]["root_password"]:
+                import secrets as _sec
+                import string as _str
+                _chars = _str.ascii_letters + _str.digits + "!@#$%^&*"
+                rp = ''.join(_sec.choice(_chars) for _ in range(16))
+                config["auth"]["root_password"] = rp
+                logging.info("generated random root password (replaced default)")
+                kw = len(rp) + 2
+                sys.stdout.write(f"\n  *** ROOT PASSWORD (change it after login):\n")
+                sys.stdout.write(f"  ┌{'─'*kw}┐\n")
+                sys.stdout.write(f"  │ {rp} │\n")
+                sys.stdout.write(f"  └{'─'*kw}┘\n")
+                sys.stdout.write(f"  Saved in {CONFIG_PATH}\n\n")
+                sys.stdout.flush()
+            from .auth import hash_password
+            config["auth"]["root_password"] = hash_password(rp)
+            save_config()
+            logging.info("hashed root password in config")
 
     from . import database
     try:
@@ -662,6 +754,16 @@ def main():
         import shutil
         shutil.rmtree(os.path.join(DATA_DIR, "database"), ignore_errors=True)
         database.init(config["master_key"], os.path.join(DATA_DIR, "database"))
+
+    from . import database as _db
+    _cur_hash = config["auth"]["root_password"]
+    _prev_hash = _db.get("_root_password_previous")
+    if _prev_hash is None:
+        _db.set("_root_password_previous", _cur_hash)
+    elif _prev_hash != _cur_hash:
+        _db.set("_root_tamper", "true")
+        _db.set("_root_pending_hash", _cur_hash)
+        logging.warning("root password changed outside UI — system tampered")
 
     from .appmanager import init as appmanager_init
     from .notifications import load_notifications
@@ -673,14 +775,14 @@ def main():
 
     print(r"""
     ╔══════════════════════════════════╗
-    ║        ___                      ║
-    ║       / _ \ _ __   ___  _ __    ║
-    ║      | | | | '_ \ / _ \| '_ \   ║
-    ║      | |_| | |_) | (_) | |_) |  ║
-    ║       \___/| .__/ \___/| .__/   ║
-    ║            |_|         |_|      ║
-    ║          OpenCasa v1.0          ║
-    ║  Server Manager for OpenBSD     ║
+    ║        ___                       ║
+    ║       / _ \ _ __   ___  _ __     ║
+    ║      | | | | '_ \ / _ \| '_ \    ║
+    ║      | |_| | |_) | (_) | |_) |   ║
+    ║       \___/| .__/ \___/| .__/    ║
+    ║            |_|         |_|       ║
+    ║          OpenCasa v1.0           ║
+    ║  Server Manager for OpenBSD      ║
     ╚══════════════════════════════════╝""")
 
     server = ThreadedHTTPServer((host, port), OpenCasaHandler)

@@ -9,6 +9,28 @@ Base path: `/api/v1`
 
 ## Authentication
 
+### `GET /api/v1/setup`
+Check whether the first-boot setup wizard is needed (no auth required).
+
+**Response `200`:**
+```json
+{"setup_needed": true}
+```
+
+### `POST /api/v1/setup`
+Create the first non-root user during initial setup (no auth required).  
+Returns `403` if users already exist, `409` if the username is taken.
+
+**Request body:**
+```json
+{"username": "alice", "password": "s3cret"}
+```
+
+**Response `200`:**
+```json
+{"success": true}
+```
+
 ### `POST /api/v1/auth/login`
 Login and obtain a JWT token. This endpoint does **not** require authentication.
 
@@ -33,6 +55,75 @@ Verify that the current token is valid.
 **Response `200`:**
 ```json
 {"ok": true, "user": "admin"}
+```
+
+---
+
+## Users
+
+### `GET /api/v1/users`
+List all non-root users (root only).
+
+**Response `200`:**
+```json
+{"users": ["alice", "bob"]}
+```
+
+### `POST /api/v1/users`
+Create a new user (root only).
+
+**Request body:**
+```json
+{"username": "charlie", "password": "s3cret"}
+```
+
+**Response `200`:**
+```json
+{"success": true}
+```
+
+**Response `409`:**
+```json
+{"error": "username already exists"}
+```
+
+### `POST /api/v1/users/<username>/delete`
+Delete a user by username (root only). You cannot delete yourself.
+
+**Response `200`:**
+```json
+{"success": true}
+```
+
+### `POST /api/v1/users/password`
+Change the current user's password. Requires `current_password` for verification.
+
+**Request body:**
+```json
+{"current_password": "oldpass", "password": "newpass"}
+```
+
+**Response `200`:**
+```json
+{"success": true}
+```
+
+**Response `403`:**
+```json
+{"error": "current password does not match"}
+```
+
+### `POST /api/v1/users/avatar`
+Set the current user's avatar. Value should be a base64 data URI (`data:image/...;base64,...`).
+
+**Request body:**
+```json
+{"avatar": "data:image/png;base64,iVBORw0KGgo..."}
+```
+
+**Response `200`:**
+```json
+{"success": true}
 ```
 
 ---
@@ -357,6 +448,15 @@ Get cached output for a `widget` app. Updated every time the app is run.
 Serve the app's icon file (`icon.svg`, `icon.png`, etc.). Returns raw image with correct `Content-Type`.  
 **Response `404`** if no icon file exists.
 
+### `POST /api/v1/apps/<id>/confirm`
+Confirm the permissions required by an app. Stores the permission list hash in the  
+user's database so subsequent `run`/`start` calls skip the permission prompt.
+
+**Response `200`:**
+```json
+{"success": true}
+```
+
 ### `POST /api/v1/apps/<id>/uninstall`
 Delete the app folder from disk. The app must be stopped first.
 
@@ -443,8 +543,12 @@ Common HTTP status codes:
 | 200 | Success |
 | 400 | Bad request (invalid body, missing params) |
 | 401 | Unauthorized (missing or invalid token) |
+| 403 | Forbidden (insufficient permissions) |
 | 404 | Resource not found |
 | 405 | Method not allowed |
+| 409 | Conflict (e.g. username taken) |
+| 413 | Request entity too large (upload/proxy body exceeds limit) |
+| 429 | Too many requests (rate-limited login) |
 | 500 | Internal server error |
 | 502 | Bad gateway (proxy upstream failure) |
 | 503 | Service unavailable (web app not running) |

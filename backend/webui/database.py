@@ -21,10 +21,11 @@ _enc_key = None
 _mac_key = None
 _conn = None
 _lock = threading.Lock()
+_init_complete = False
 
 
 def init(master_key_b64, db_dir):
-    global _enc_key, _mac_key, _conn
+    global _enc_key, _mac_key, _conn, _init_complete
 
     master_key = base64.b64decode(master_key_b64)
     salt = b"OpenCasa-DB-v1"
@@ -74,6 +75,7 @@ def init(master_key_b64, db_dir):
     token = encrypt("OpenCasa-DB-OK")
     _conn.execute("INSERT OR REPLACE INTO meta VALUES (?, ?)", ("verification", token))
     _conn.commit()
+    _init_complete = True
     log.info("database ready at %s", db_path)
 
 
@@ -110,7 +112,7 @@ def _mac(data):
 
 
 def _ready():
-    return _conn is not None
+    return _conn is not None and _init_complete
 
 
 def get(key):

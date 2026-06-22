@@ -87,6 +87,8 @@ def handle_upload(handler, params):
     content_type = handler.headers.get("Content-Type", "")
     if "multipart/form-data" not in content_type:
         return handler._send_error(400, "multipart/form-data required")
+    if "boundary=" not in content_type:
+        return handler._send_error(400, "missing boundary in Content-Type")
     boundary = content_type.split("boundary=", 1)[1].strip()
     body = handler._read_body()
     dest_path = ""

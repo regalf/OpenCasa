@@ -120,6 +120,9 @@
   "error.unauthorized": "Unauthorized",
   "error.unknown": "Unknown error",
 
+  "account.current_password": "Current Password",
+  "account.current_placeholder": "Current password",
+  "account.current_required": "Current password required",
   "account.new_password": "New Password",
   "account.password_placeholder": "New password",
   "account.confirm_placeholder": "Confirm password",
@@ -127,5 +130,11 @@
   "account.password_changed": "Password changed",
   "account.change_avatar": "Change Avatar",
   "account.avatar_too_big": "Image too large (max 50KB)",
-  "account.avatar_res_limit": "Max resolution: %s×%s px"
+  "account.avatar_res_limit": "Max resolution: %s×%s px",
+
+  "auth.tamper_title": "Security Alert",
+  "auth.tamper_desc": "The root password has been changed outside the UI. Enter the PREVIOUS root password to verify the change.",
+  "auth.old_root_password": "Previous root password",
+  "auth.verify": "Verify",
+  "auth.incorrect_password": "Incorrect password"
 }

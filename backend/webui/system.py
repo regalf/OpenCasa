@@ -11,7 +11,7 @@ from . import config
 def _run(cmd):
     try:
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
-        return r.stdout.splitlines()
+        return r.stdout[:1048576].splitlines()
     except Exception as e:
         logging.warning("command failed: %s -> %s", " ".join(cmd), e)
         return []
@@ -265,8 +265,9 @@ def get_system_stats():
             except (ValueError, IndexError, AttributeError):
                 pass
 
-    mem["free"] = max(mem["free"], 0)
-    mem["used"] = max(mem["total"] - mem["free"], 0)
+    if not obe:
+        mem["free"] = max(mem["free"], 0)
+        mem["used"] = max(mem["total"] - mem["free"], 0)
 
     net = _get_network_stats()
 
@@ -297,7 +298,12 @@ def _get_network_stats():
                 except (ValueError, IndexError):
                     pass
     else:
-        for line in _run(["/bin/cat", "/proc/net/dev"]):
+        try:
+            with open("/proc/net/dev") as f:
+                lines = f.read().splitlines()
+        except OSError:
+            lines = []
+        for line in lines:
             if ":" in line:
                 iface, data = line.split(":", 1)
                 iface = iface.strip()

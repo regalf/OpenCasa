@@ -120,6 +120,9 @@
   "error.unauthorized": "Non autorizzato",
   "error.unknown": "Errore sconosciuto",
 
+  "account.current_password": "Password Attuale",
+  "account.current_placeholder": "Password attuale",
+  "account.current_required": "Password attuale richiesta",
   "account.new_password": "Nuova Password",
   "account.password_placeholder": "Nuova password",
   "account.confirm_placeholder": "Conferma password",
@@ -127,5 +130,11 @@
   "account.password_changed": "Password cambiata",
   "account.change_avatar": "Cambia Avatar",
   "account.avatar_too_big": "Immagine troppo grande (max 50KB)",
-  "account.avatar_res_limit": "Risoluzione massima: %s×%s px"
+  "account.avatar_res_limit": "Risoluzione massima: %s×%s px",
+
+  "auth.tamper_title": "Allarme di Sicurezza",
+  "auth.tamper_desc": "La password di root e' stata cambiata al di fuori dell'interfaccia. Inserisci la PASSWORD PRECEDENTE per verificare il cambiamento.",
+  "auth.old_root_password": "Password root precedente",
+  "auth.verify": "Verifica",
+  "auth.incorrect_password": "Password errata"
 }

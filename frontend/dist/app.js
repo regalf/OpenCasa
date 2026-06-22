@@ -53,6 +53,9 @@ let state = {
   loginPhase: 1,
   loginUser: '',
   avatar: '',
+  tampered: false,
+  tamperError: '',
+  tamperLoading: false,
 };
 
 async function api(method, path, body) {
@@ -417,6 +420,8 @@ function toggleAccountModal() {
           <input type="file" id="acc-avatar-input" accept="image/png,image/jpeg,image/gif,image/svg+xml" style="display:none" onchange="uploadAvatar()" />
           <button class="btn" onclick="document.getElementById('acc-avatar-input').click()">${t('account.change_avatar')}</button>
         </div>
+        <label>${t('account.current_password')}</label>
+        <input id="acc-current" type="password" placeholder="${t('account.current_placeholder')}" />
         <label>${t('account.new_password')}</label>
         <input id="acc-pass" type="password" placeholder="${t('account.password_placeholder')}" />
         <input id="acc-pass2" type="password" placeholder="${t('account.confirm_placeholder')}" />
@@ -437,13 +442,15 @@ function closeAccountModal() {
 }
 
 async function changePassword() {
+  const cur = document.getElementById('acc-current')?.value;
   const p1 = document.getElementById('acc-pass')?.value;
   const p2 = document.getElementById('acc-pass2')?.value;
   const msg = document.getElementById('acc-msg');
+  if (!cur) { msg.textContent = t('account.current_required'); msg.style.color = '#f87171'; return; }
   if (!p1 || p1.length < 4) { msg.textContent = t('setup.pass_short'); msg.style.color = '#f87171'; return; }
   if (p1 !== p2) { msg.textContent = t('setup.pass_mismatch'); msg.style.color = '#f87171'; return; }
   try {
-    const r = await api('POST', '/users/password', { password: p1 });
+    const r = await api('POST', '/users/password', { current_password: cur, password: p1 });
     if (r && r.success) {
       msg.textContent = t('account.password_changed'); msg.style.color = '#4ade80';
       document.getElementById('acc-pass').value = '';
@@ -585,6 +592,31 @@ async function stopWebApp(id) {
   await api('POST','/apps/' + encodeURIComponent(id) + '/stop');
   showAppDetail(id);
   loadApps();
+}
+
+async function verifyRootChange() {
+  const pass = document.getElementById('tamper-old-pass')?.value;
+  if (!pass) return;
+  state.tamperLoading = true;
+  state.tamperError = '';
+  render();
+  try {
+    const res = await api('POST', '/auth/verify-root-change', {password: pass});
+    if (res && res.success) {
+      state.tampered = false;
+      state.tamperError = '';
+      state.tamperLoading = false;
+      location.reload();
+    } else {
+      state.tamperError = t('auth.incorrect_password');
+      state.tamperLoading = false;
+      render();
+    }
+  } catch(e) {
+    state.tamperError = e.message || t('auth.incorrect_password');
+    state.tamperLoading = false;
+    render();
+  }
 }
 
 async function uninstallApp(id) {
@@ -887,6 +919,25 @@ function isDangerousPath(p) {
 function render() {
   const app = document.getElementById('app');
 
+  // Tamper overlay — shown on top of everything
+  if (state.tampered) {
+    const sp = state.tamperLoading ? 'disabled' : '';
+    app.innerHTML = \`
+      <div class="tamper-overlay">
+        <div class="tamper-box">
+          <h2>\${t('auth.tamper_title')}</h2>
+          <p>\${t('auth.tamper_desc')}</p>
+          <div style="margin-top:1.5rem">
+            <input id="tamper-old-pass" type="password" placeholder="\${t('auth.old_root_password')}" style="width:100%;padding:.6rem;margin-bottom:.5rem;background:#1e293b;color:#f1f5f9;border:1px solid #7f1d1d;border-radius:6px;box-sizing:border-box">
+            <button class="btn btn-danger" style="width:100%" onclick="verifyRootChange()" \${sp}>\${state.tamperLoading ? t('app.loading') : t('auth.verify')}</button>
+          </div>
+          \${state.tamperError ? '<p style="color:#fca5a5;margin-top:.5rem">' + escapeHtml(state.tamperError) + '</p>' : ''}
+        </div>
+      </div>
+    \`;
+    return;
+  }
+
   // First check if setup is needed
   if (!state.loggedIn && state.setupNeeded) {
     app.innerHTML = renderSetup();
@@ -1069,8 +1120,8 @@ function renderDashboard() {
                   <button class="app-card-menu" onclick="event.stopPropagation();showAppDetail('${escapeHtml(app.id)}')">⋮</button>
                   <img class="app-card-icon" src="/api/v1/apps/${encodeURIComponent(app.id)}/icon" alt="" onerror="this.style.display='none'"/>
                   <div class="app-card-icon-placeholder" style="${app.icon ? 'display:none' : ''}">${escapeHtml(app.name[0] || '?')}</div>
-                  <span class="app-name">${escapeHtml(app.name)}</span>
-                  ${app.status === 'running' ? `<span class="app-status running">● ${t('apps.running')}</span>` : ''}
+                  <span class="app-card-name">${escapeHtml(app.name)}</span>
+                  ${app.status === 'running' ? `<span class="app-card-status running">● ${t('apps.running')}</span>` : ''}
                 </div>`).join('')}
             </div>
           ` : `<p class="dim">${t('dashboard.no_apps')}</p>`}
@@ -1194,7 +1245,6 @@ function renderAppManager() {
             <img class="app-card-icon" src="/api/v1/apps/${encodeURIComponent(app.id)}/icon" alt="" onerror="this.style.display='none'"/>
             <div class="app-card-icon-placeholder" style="${app.icon ? 'display:none' : ''}">${escapeHtml(app.name[0] || '?')}</div>
             <span class="app-card-name">${escapeHtml(app.name)}</span>
-            <span class="app-card-type ${app.type}">${app.type}</span>
             ${app.status === 'running' ? `<span class="app-card-status running">● ${t('apps.running')}</span>` : ''}
           </div>`).join('')}
       </div>
@@ -1221,7 +1271,7 @@ function renderAppDetail(d) {
         ${d.author ? `<p class="dim">${t('apps.author')}: ${escapeHtml(d.author)}</p>` : ''}
         ${d.description ? `<p>${escapeHtml(d.description)}</p>` : ''}
         <div class="detail-section">
-          <strong>${t('apps.type')}:</strong> <span class="app-card-type ${d.type}">${d.type}</span>
+          <strong>${t('apps.type')}:</strong> ${d.type}
           ${d.type === 'web' && d.port ? `<span style="margin-left:1rem;color:#64748b">port ${d.port}</span>` : ''}
         </div>
         ${d.permissions && d.permissions.length ? `
@@ -1330,6 +1380,14 @@ setInterval(() => {
 // Initial render — start with English; backend config language loaded via fetchAll()
 loadLocale('en').then(async () => {
   await checkSetup();
+  try {
+    const st = await api('GET', '/auth/status');
+    if (st && st.tamper) {
+      state.tampered = true;
+      render();
+      return;
+    }
+  } catch(e) {}
   if (token && !state.setupNeeded) {
     // Verify token still valid
     try {
@@ -1385,4 +1443,5 @@ window.openApp = openApp;
 window.createUser = createUser;
 window.deleteUser = deleteUser;
 window.checkUser = checkUser;
+window.verifyRootChange = verifyRootChange;
 })();

@@ -1,8 +1,8 @@
 # OpenCasa
 
-Server management panel for **OpenBSD/macppc** (PowerPC G3/G4/G5), inspired by CasaOS.
+**OpenCasa** is a lightweight server management panel inspired by CasaOS, designed for old/low-power hardware (PowerPC G3/G4/G5, single-core ARM, old x86).
 
-**Zero compilation, zero dependencies** — pure Python stdlib backend + standalone HTML/JS frontend.
+**Zero compilation, zero dependencies** — pure Python stdlib backend + standalone HTML/JS frontend. No npm, no node_modules, no CDN, no build step.
 
 ```
 ┌──────────────────────────────────────────────────────────┐
@@ -18,26 +18,36 @@ Server management panel for **OpenBSD/macppc** (PowerPC G3/G4/G5), inspired by C
 └──────────────────────────────────────────────────────────┘
 ```
 
+## Supported Systems
+
+| System | Status | Notes |
+|--------|--------|-------|
+| OpenBSD/macppc (G3/G4/G5) | Primary target | Tested on 300 MHz–2 GHz PowerPC, 256 MB+ RAM |
+| Linux (x86_64, arm, etc.) | Works | Uses `/proc/` for stats |
+| Any Unix with Python 3 | Should work | BSDs, macOS (not heavily tested) |
+
+Platform detection is automatic via `system.platform: "auto"` in config. Override with `"linux"` or `"openbsd"` if needed.
+
 ## Features
 
-- **Dashboard** — real-time CPU/memory/storage meters, widget grid, installed apps
-- **File Manager** — browse, upload, download, create, rename, delete, text editor
-- **Apps** — install/uninstall containerized apps (tool, widget, web types) with permission system
-- **Notifications** — system and app-level alerts
+- **Dashboard** — real-time CPU/memory/storage/network meters, widget grid, installed apps
+- **File Manager** — browse, upload, download, create, rename, delete, inline text editor
+- **Apps** — containerized app system (tool, widget, web types) with permission confirmation
+- **Notifications** — system and app-level alerts, persisted to disk
+- **Web App Proxy** — web-type apps run on their own port, proxied via `/app/<id>/`
 - **Disk Manager** — mount/unmount removable drives
-- **Editor** — built-in textarea editor (no Monaco — too heavy for G3)
+- **Multi-user** — root + regular users, configurable root account, PBKDF2 password hashing
+- **Encrypted Database** — per-value HMAC-CTR encrypted SQLite key-value store
+- **Authentication** — JWT-based login with configurable session TTL, optional (can disable)
+- **Rate Limiting** — 10 failed login attempts per IP in 5 minutes
 - **i18n** — English and Italian (configurable via `ui.language`)
 - **Mobile-friendly** — hamburger menu, responsive layout
-- **Authentication** — optional JWT-based login with configurable session TTL
-- **Web App Proxy** — web-type apps run on their own port, proxied via `/app/<id>/`
 
 ## Requirements
 
-- **OpenBSD 7.x** (tested on macppc, works on any arch)
-- **Python 3** (from base system or `pkg_add python`)
+- **Python 3** (stdlib only — no pip packages)
 - ~30 MB disk, ~40 MB RAM at idle
-
-Works on any Unix with Python 3 (Linux, BSD, macOS) via `system.platform: "auto"` or forced `"linux"`/`"openbsd"`.
+- For apps: system user `opencasa` (create manually: `doas useradd -m opencasa`)
 
 ## Quick Install
 
@@ -51,20 +61,22 @@ cp frontend/dist/style.css /usr/local/webui/
 cp frontend/dist/app.js /usr/local/webui/
 cp frontend/dist/favicon.svg /usr/local/webui/
 cp -r frontend/dist/locales /usr/local/webui/locales
-cp scripts/webui /etc/rc.d/webui
+cp scripts/webui /etc/rc.d/webui      # OpenBSD
+# or: cp scripts/webui.service /etc/systemd/system/  # Linux
 chmod +x /etc/rc.d/webui
 cp opencasa.json.example /etc/opencasa.json
 
-# Generate a JWT secret
-openssl rand -hex 32
-# Edit /etc/opencasa.json and paste it into jwt_secret
+# On first boot, OpenCasa auto-generates:
+#   - Master key for database encryption (displayed on console)
+#   - JWT secret (replaces the placeholder)
+#   - Random 16-character root password (displayed on console, replaces the default "admin")
 
 # Enable and start
-rcctl enable webui
+rcctl enable webui      # OpenBSD
 rcctl start webui
 ```
 
-Or use the Makefile: `doas make install`
+Or use `doas make install`.
 
 ## Configuration
 
@@ -74,21 +86,19 @@ Or use the Makefile: `doas make install`
 |-----|---------|-------------|
 | `server.host` | `"0.0.0.0"` | Bind address |
 | `server.port` | `80` | HTTP port |
-| `server.tls` | `false` | Enable HTTPS |
-| `server.cert_file` | `""` | TLS certificate path |
-| `server.key_file` | `""` | TLS key path |
 | `auth.enabled` | `true` | Require login |
-| `auth.username` | `"admin"` | Login username |
-| `auth.password` | `"admin"` | Login password |
-| `auth.jwt_secret` | *(random)* | HMAC key for JWT tokens |
+| `auth.root_user` | `"root"` | Root username (from config, not DB) |
+| `auth.root_password` | `"admin"` | Root password (replaced with random 16-char on first boot, then hashed) |
+| `auth.jwt_secret` | *(auto-generated)* | HMAC key for JWT tokens |
 | `auth.session_ttl` | `"24h"` | Token validity duration |
 | `filesystem.allowed_prefixes` | `["/home","/var/www","/mnt","/tmp","/opt"]` | File manager access control |
 | `filesystem.max_upload_size` | `100` | Max upload size in MB |
-| `system.platform` | `"auto"` | Force platform detection (`"auto"`, `"linux"`, `"openbsd"`) |
+| `system.platform` | `"auto"` | Force platform detection |
 | `ui.memory_unit` | `"MB"` | Memory display unit (`"MB"` or `"GB"`) |
 | `ui.language` | `"en"` | UI language (`"en"` or `"it"`) |
 | `apps_dir` | `"/usr/local/webui/apps"` | Apps directory |
-| `master_key` | *(auto-generata)* | Base64 key for encrypted user database |
+| `app_user` | `"opencasa"` | System user for running apps |
+| `master_key` | *(auto-generated)* | Base64 key for encrypted user database |
 | `apps_autostart` | `true` | Auto-start web apps on boot |
 
 ## App System
@@ -116,7 +126,7 @@ Apps are folders in `apps_dir`, each containing a `manifest.json` and scripts.
   "port": 0,
   "autostart": false,
   "permissions": ["system:monitor"],
-  "env": {"MY_VAR": "value"}
+  "has_widget": true
 }
 ```
 
@@ -135,36 +145,38 @@ Web apps receive `OPENCASA_ACTION=widget` when polled for widget data (output JS
 
 Install via `sh examples/apps/install-examples.sh`
 
+### App Permissions
+
+Apps declare required permissions in their manifest. Before first run, the user must confirm via a dialog. Confirmed permissions are stored in the encrypted database. Apps with an empty `permissions` list (e.g. `hello-web`, `calendar`) skip the confirmation and start directly.
+
+### App User
+
+Apps are designed to run as an unprivileged system user (`app_user`, default `opencasa`) for sandboxing. On **Linux**, the backend drops privileges via `os.setuid()`/`os.setgid()`. On **OpenBSD**, privilege dropping is not fully supported — apps currently run as root. Permission enforcement (confirmation dialog, restricted file access) still applies regardless of the running user.
+
+Create the app user manually:
+```sh
+doas useradd -m opencasa
+doas passwd opencasa
+```
+
+If the user is missing, the Apps tab shows a warning banner and app execution is blocked.
+
+## Limitations
+
+- **OpenBSD app execution**: apps run as root (privilege dropping via `os.setuid()` is not reliable on all OpenBSD versions/configurations). Permission confirmations are still enforced.
+- **No HTTPS in daemon**: terminate behind nginx/haproxy for TLS.
+- **No test suite**: backend has no automated tests.
+- **No package-lock.json**: frontend dependency versions are not locked (Svelte/Vite build only needed for development, not deployment).
+- **Config save is not fully atomic**: uses `os.replace()` which is atomic on most filesystems but not guaranteed on all.
+
 ## Database System
 
 User preferences (widget visibility, app settings) are stored in an **encrypted SQLite database** at `DATA_DIR/database/opencasa.db`.
 
-### How it works
-
-| Step | What happens |
-|------|-------------|
-| First boot | `os.urandom(48)` → base64 → written to `opencasa.json` as `master_key` |
-| Startup | PBKDF2-SHA256 derives two 32-byte keys from `master_key` (one-time cost, ~150ms on G3) |
-| Encrypt | HMAC-SHA256 in CTR mode: `ciphertext = plaintext XOR keystream` |
-| Decrypt | Same keystream → XOR back |
-| Integrity | Each stored value has an HMAC-SHA256 tag — tampering is detected |
-
-Derived keys are cached in RAM after startup; individual encrypt/decrypt operations use only fast HMAC calls (<1ms each).
-
-### Master key
-
-- Auto-generated if missing from config
-- If the key is accidentally changed or corrupted, the backend detects it via a verification token, deletes the old database, and creates a fresh one
-- Data loss is limited to user preferences (widget visibility) — not critical data
-
-### API
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/v1/db/get?key=xxx` | GET | Read a value |
-| `/api/v1/db/set` | POST | Write a value |
-| `/api/v1/db/delete` | POST | Delete a key |
-| `/api/v1/db/list?prefix=` | GET | List keys |
+- First boot: `os.urandom(48)` → base64 → written to config as `master_key`
+- Startup: PBKDF2-SHA256 derives two 32-byte keys (one-time cost, ~150ms on G3)
+- Each value encrypted with HMAC-SHA256 in CTR mode + integrity HMAC tag
+- If master key is lost/corrupted, database is detected and regenerated automatically
 
 ## API
 
@@ -172,27 +184,17 @@ Complete API reference in [API.md](API.md). Summary:
 
 | Endpoint | Method | Auth | Description |
 |----------|--------|------|-------------|
-| `/api/v1/auth/login` | POST | No | Login → JWT |
+| `/api/v1/auth/login` | POST | No | Login |
 | `/api/v1/auth/check` | GET | Yes | Verify token |
-| `/api/v1/system/stats` | GET | Yes | CPU, memory, uptime |
+| `/api/v1/setup` | GET/POST | No | First-boot wizard |
+| `/api/v1/system/stats` | GET | Yes | CPU, memory, uptime, network |
 | `/api/v1/system/info` | GET | Yes | Hostname, kernel, platform |
 | `/api/v1/storage` | GET | Yes | Filesystem usage |
-| `/api/v1/files` | GET | Yes | List directory |
-| `/api/v1/files/read` | GET | Yes | Read file |
-| `/api/v1/files/write` | POST | Yes | Write/create file |
-| `/api/v1/files/upload` | POST | Yes | Upload file (multipart) |
-| `/api/v1/files/download` | GET | Yes | Download file |
+| `/api/v1/files/*` | * | Yes | File CRUD + upload/download |
 | `/api/v1/apps` | GET | Yes | List apps |
-| `/api/v1/apps/<id>/run` | POST | Yes | Run tool/widget |
-| `/api/v1/apps/<id>/start` | POST | Yes | Start web app |
-| `/api/v1/apps/<id>/stop` | POST | Yes | Stop web app |
-| `/api/v1/apps/<id>/widget` | GET | Yes | Get cached widget data |
-| `/api/v1/apps/<id>/icon` | GET | No | App icon image |
-| `/api/v1/apps/<id>/uninstall` | POST | Yes | Delete app |
-| `/api/v1/db/get` | GET | Yes | Read from user database |
-| `/api/v1/db/set` | POST | Yes | Write to user database |
-| `/api/v1/db/delete` | POST | Yes | Delete from user database |
-| `/api/v1/db/list` | GET | Yes | List database keys |
+| `/api/v1/apps/<id>/*` | * | Yes | Run, start, stop, confirm, uninstall |
+| `/api/v1/users/*` | * | Yes | User management (root only for create/delete) |
+| `/api/v1/db/*` | * | Yes | User-scoped encrypted key-value |
 | `/api/v1/notifications` | GET | Yes | List notifications |
 | `/api/v1/notify` | POST | Yes | Push notification |
 | `/app/<id>/<path>` | * | No | Web app proxy |
@@ -200,80 +202,58 @@ Complete API reference in [API.md](API.md). Summary:
 ## Architecture
 
 ```
-┌─────────────────┐     HTTP      ┌──────────────┐
-│  Browser         │◄────────────►│  webui.py     │
-│  (index.html)    │              │  (Python      │
-│  Pure JS/HTML    │              │   stdlib      │
-│  No frameworks   │              │   HTTP server)│
-└─────────────────┘              └──────┬───────┘
-                                        │
-                          ┌─────────────┼──────────────┐
-                          ▼             ▼              ▼
-                   ┌──────────┐  ┌──────────┐  ┌──────────┐
-                   │ auth.py  │  │system.py │  │appmanager│
-                   │ JWT HMAC │  │CPU/mem   │  │.py       │
-                   └──────────┘  │vmstat    │  │ exec/    │
-                                 │/proc     │  │ proxy/   │
-                                 └──────────┘  │ cache    │
-                                               └──────────┘
+Browser  ◄──── HTTP ────►  webui.py (Python stdlib HTTP server)
+                                │
+                    ┌───────────┼──────────────┐
+                    ▼           ▼              ▼
+              auth.py      system.py     appmanager.py
+              JWT/HMAC     CPU/mem via    exec/proxy/
+                           vmstat/proc    cache/perms
 ```
-
-- **Backend**: Pure Python stdlib `http.server` — modular in `backend/webui/` (auth, system, filemanager, appmanager, notifications, proxy)
-- **Frontend**: Single `index.html` with inline CSS/JS — no build step, no frameworks, no CDN dependencies
-- **Web apps**: Python subprocesses, proxied by the backend
 
 ## Design for Old Hardware
 
-OpenCasa is optimized for PowerPC G3/G4/G5 (300 MHz–2 GHz, 256 MB–1 GB RAM):
+Optimized for PowerPC G3/G4/G5 (300 MHz–2 GHz, 256 MB–1 GB RAM):
 
-- **No compilation** — interpreted Python only
-- **No npm/node/webpack** — frontend is a single HTML file
-- **No CDN** — zero network requests after initial load (3 files: HTML + CSS + JS)
-- **No browser-side framework** — vanilla JS, direct DOM manipulation
-- **No Monaco Editor** — replaced with textarea (Monaco is 15+ MB)
-- **No icon HTTP requests** in sidebar — uses CSS letter initials instead
-- **Widgets load after dashboard** — non-blocking `.then()`
-- **Targeted DOM updates** — `updateDashboardValues()` avoids full re-render on auto-refresh
-- **Partial API resilience** — one failed endpoint doesn't break the page
+- No compilation — interpreted Python only
+- No npm/node/webpack — frontend is a single HTML file
+- No CDN — zero network requests after initial load
+- No browser framework — vanilla JS, direct DOM manipulation
+- No Monaco Editor — textarea instead (Monaco is 15+ MB)
+- No icon HTTP requests in sidebar — CSS letter initials
+- Targeted DOM updates — avoids full re-render on auto-refresh
+- Partial API resilience — one failed endpoint doesn't break the page
 
 ## Development
 
 ```sh
 # Run locally (no root needed)
-python3 backend/webui.py -c opencasa.json.example -d . --debug
+python3 backend/webui.py -c opencasa.json.example -d . --debug -p 8080
 
-# Open browser
-open http://localhost:80
+# Or with all apps:
+mkdir -p apps && cp -r examples/apps/* apps/
+python3 backend/webui.py -c opencasa.json.example -d . --debug -p 8080
 ```
 
-### Project Structure
+## Project Structure
 
 ```
-├── backend/
-│   ├── webui.py              # HTTP server entry point
-│   └── webui/                # Python package
-│       ├── __init__.py       # Request routing + handlers + database init
-│       ├── auth.py           # JWT authentication
-│       ├── system.py         # CPU/memory/platform info
-│       ├── filemanager.py    # File operations
-│       ├── appmanager.py     # App lifecycle + widget cache
-│       ├── database.py       # Encrypted key-value store
-│       ├── notifications.py  # Notification storage
-│       └── proxy.py          # Web app HTTP proxy
-├── frontend/
-│   └── dist/
-│       ├── index.html        # HTML shell
-│       ├── style.css         # Stylesheet
-│       ├── app.js            # Frontend JavaScript
-│       ├── favicon.svg
-│       └── locales/          # Translation files
-├── examples/
-│   └── apps/                 # Example app manifests & scripts
-├── scripts/webui             # OpenBSD rc.d script
-├── API.md                    # Full API reference
-├── DEPLOY.md                 # Deployment instructions
-├── Makefile                  # Install helper
-└── opencasa.json.example     # Configuration template
+backend/webui.py          # Entry point
+backend/webui/            # Python package
+  __init__.py             # HTTP routing, config, main()
+  auth.py                 # JWT + user management
+  system.py               # CPU/mem/disk/network stats
+  filemanager.py          # File CRUD
+  appmanager.py           # App lifecycle, cache, permissions
+  database.py             # Encrypted SQLite KV store
+  notifications.py        # Notification persistence
+  proxy.py                # Web app reverse proxy
+frontend/dist/            # Built frontend (static files)
+  index.html, style.css, app.js, favicon.svg
+  locales/                # en.json, it.json
+examples/apps/            # Example app manifests + scripts
+scripts/webui             # OpenBSD rc.d script
+scripts/webui.service     # Linux systemd unit
 ```
 
 ## License
