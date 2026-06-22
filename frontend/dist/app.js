@@ -38,6 +38,7 @@ let state = {
   uploadProgress: -1,
   editing: null,
   editorContent: '',
+  _prevNet: null,
   error: '',
   appDetail: null,
   appOutput: null,
@@ -198,8 +199,8 @@ function logout() {
 function navigate(view) {
   closeSidebar();
   state.view = view; state.error = ''; state.appDetail = null; state.appOutput = null; state.appViewId = null;
+  if (view === 'dashboard') { state._prevNet = null; fetchAll(); return; }
   if (view === 'files' && state.files.length === 0) { loadFiles('/'); return; }
-  if (view === 'dashboard') { fetchAll(); return; }
   if (view === 'apps') { loadApps(); return; }
   if (view === 'controlpanel') { loadUsers(); return; }
   render();
@@ -898,10 +899,25 @@ function updateDashboardValues() {
     }
   }
   if (s?.network) {
+    const rx = s.network.rx_bytes || 0;
+    const tx = s.network.tx_bytes || 0;
     const netRx = document.getElementById('net-rx');
     const netTx = document.getElementById('net-tx');
-    if (netRx) netRx.textContent = formatBytes(s.network.rx_bytes || 0);
-    if (netTx) netTx.textContent = formatBytes(s.network.tx_bytes || 0);
+    if (netRx) netRx.textContent = formatBytes(rx);
+    if (netTx) netTx.textContent = formatBytes(tx);
+    const now = Date.now();
+    if (state._prevNet) {
+      const dt = (now - state._prevNet.ts) / 1000;
+      if (dt > 0) {
+        const rxRate = (rx - state._prevNet.rx) / dt;
+        const txRate = (tx - state._prevNet.tx) / dt;
+        const rxRateEl = document.getElementById('net-rx-rate');
+        const txRateEl = document.getElementById('net-tx-rate');
+        if (rxRateEl) rxRateEl.textContent = '↓ ' + formatRate(rxRate);
+        if (txRateEl) txRateEl.textContent = '↑ ' + formatRate(txRate);
+      }
+    }
+    state._prevNet = {rx, tx, ts: now};
   }
   const wr = document.getElementById('dash-widgets');
   if (wr) {
@@ -942,6 +958,12 @@ function formatBytes(b) {
   if (b >= 1048576) return (b / 1048576).toFixed(1) + ' MB';
   if (b >= 1024) return (b / 1024).toFixed(1) + ' KB';
   return b + ' B';
+}
+function formatRate(bps) {
+  if (bps >= 1073741824) return (bps / 1073741824).toFixed(2) + ' GB/s';
+  if (bps >= 1048576) return (bps / 1048576).toFixed(2) + ' MB/s';
+  if (bps >= 1024) return (bps / 1024).toFixed(1) + ' KB/s';
+  return bps.toFixed(1) + ' B/s';
 }
 const DANGEROUS_PATHS = ['/', '/etc', '/usr', '/var', '/sys', '/proc', '/dev', '/boot', '/root', '/bin', '/sbin', '/lib', '/lib64'];
 function isDangerousPath(p) {
@@ -1137,10 +1159,12 @@ function renderDashboard() {
               <div class="details">
                 <span class="dim">${t('dashboard.net_rx')}</span>
                 <span id="net-rx">${formatBytes(netRx)}</span>
+                <span id="net-rx-rate" class="dim" style="margin-left:.3rem"></span>
               </div>
               <div class="details">
                 <span class="dim">${t('dashboard.net_tx')}</span>
                 <span id="net-tx">${formatBytes(netTx)}</span>
+                <span id="net-tx-rate" class="dim" style="margin-left:.3rem"></span>
               </div>
             </div>
           ` : ''}
