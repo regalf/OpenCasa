@@ -5,6 +5,7 @@ import json
 import mimetypes
 import os
 import re
+import shutil
 
 from . import config, DATA_DIR, CONFIG_PATH
 
@@ -80,7 +81,7 @@ def handle_download(handler, path):
     handler.send_header("Access-Control-Allow-Origin", "*")
     handler.end_headers()
     with open(path, "rb") as f:
-        handler.wfile.write(f.read())
+        shutil.copyfileobj(f, handler.wfile)
 
 
 def handle_upload(handler, params):

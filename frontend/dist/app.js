@@ -1419,10 +1419,10 @@ function renderControlPanel() {
   `;
 }
 
-// Auto-refresh dashboard every 5s
+// Auto-refresh dashboard every 30s
 setInterval(() => {
   if (state.loggedIn && state.view === 'dashboard') fetchAll();
-}, 5000);
+}, 30000);
 
 // Initial render — start with English; backend config language loaded via fetchAll()
 loadLocale('en').then(async () => {

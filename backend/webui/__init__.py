@@ -83,6 +83,8 @@ def save_config():
     try:
         with open(tmp, "w") as f:
             json.dump(config, f, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
         os.replace(tmp, path)
         logging.debug("config saved to %s", path)
     except Exception as e:

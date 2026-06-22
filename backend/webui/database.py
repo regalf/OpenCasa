@@ -27,55 +27,56 @@ _init_complete = False
 def init(master_key_b64, db_dir):
     global _enc_key, _mac_key, _conn, _init_complete
 
-    master_key = base64.b64decode(master_key_b64)
-    salt = b"OpenCasa-DB-v1"
-    derived = hashlib.pbkdf2_hmac("sha256", master_key, salt, 10000, dklen=64)
-    _enc_key = derived[:32]
-    _mac_key = derived[32:]
+    with _lock:
+        master_key = base64.b64decode(master_key_b64)
+        salt = b"OpenCasa-DB-v1"
+        derived = hashlib.pbkdf2_hmac("sha256", master_key, salt, 10000, dklen=64)
+        _enc_key = derived[:32]
+        _mac_key = derived[32:]
 
-    os.makedirs(db_dir, exist_ok=True)
-    db_path = os.path.join(db_dir, "opencasa.db")
-    _conn = sqlite3.connect(db_path, check_same_thread=False)
-    _conn.execute("PRAGMA journal_mode=WAL")
-    _conn.execute("""CREATE TABLE IF NOT EXISTS kv (
-        key TEXT PRIMARY KEY,
-        value TEXT NOT NULL,
-        mac TEXT NOT NULL
-    )""")
-    _conn.execute("""CREATE TABLE IF NOT EXISTS meta (
-        key TEXT PRIMARY KEY,
-        value TEXT NOT NULL
-    )""")
-    _conn.commit()
+        os.makedirs(db_dir, exist_ok=True)
+        db_path = os.path.join(db_dir, "opencasa.db")
+        _conn = sqlite3.connect(db_path, check_same_thread=False)
+        _conn.execute("PRAGMA journal_mode=WAL")
+        _conn.execute("""CREATE TABLE IF NOT EXISTS kv (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            mac TEXT NOT NULL
+        )""")
+        _conn.execute("""CREATE TABLE IF NOT EXISTS meta (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        )""")
+        _conn.commit()
 
-    cur = _conn.execute("SELECT value FROM meta WHERE key=?", ("verification",))
-    row = cur.fetchone()
-    if row:
-        try:
-            decrypt(row[0])
-            log.debug("database integrity verified")
-        except Exception:
-            log.warning("master key mismatch — regenerating database")
-            _conn.close()
-            _conn = None
-            os.remove(db_path)
-            _conn = sqlite3.connect(db_path, check_same_thread=False)
-            _conn.execute("PRAGMA journal_mode=WAL")
-            _conn.execute("""CREATE TABLE IF NOT EXISTS kv (
-                key TEXT PRIMARY KEY,
-                value TEXT NOT NULL,
-                mac TEXT NOT NULL
-            )""")
-            _conn.execute("""CREATE TABLE IF NOT EXISTS meta (
-                key TEXT PRIMARY KEY,
-                value TEXT NOT NULL
-            )""")
-            _conn.commit()
+        cur = _conn.execute("SELECT value FROM meta WHERE key=?", ("verification",))
+        row = cur.fetchone()
+        if row:
+            try:
+                decrypt(row[0])
+                log.debug("database integrity verified")
+            except Exception:
+                log.warning("master key mismatch — regenerating database")
+                _conn.close()
+                _conn = None
+                os.remove(db_path)
+                _conn = sqlite3.connect(db_path, check_same_thread=False)
+                _conn.execute("PRAGMA journal_mode=WAL")
+                _conn.execute("""CREATE TABLE IF NOT EXISTS kv (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL,
+                    mac TEXT NOT NULL
+                )""")
+                _conn.execute("""CREATE TABLE IF NOT EXISTS meta (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                )""")
+                _conn.commit()
 
-    token = encrypt("OpenCasa-DB-OK")
-    _conn.execute("INSERT OR REPLACE INTO meta VALUES (?, ?)", ("verification", token))
-    _conn.commit()
-    _init_complete = True
+        token = encrypt("OpenCasa-DB-OK")
+        _conn.execute("INSERT OR REPLACE INTO meta VALUES (?, ?)", ("verification", token))
+        _conn.commit()
+        _init_complete = True
     log.info("database ready at %s", db_path)
 
 

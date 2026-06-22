@@ -29,7 +29,7 @@ def save_notifications():
 
 def push_notification(app_id, title, message, severity="info"):
     n = {
-        "id": datetime.now().strftime("%H%M%S.%f"),
+        "id": datetime.now().strftime("%Y%m%d%H%M%S.%f") + "-" + os.urandom(4).hex(),
         "app_id": app_id,
         "title": title,
         "message": message,

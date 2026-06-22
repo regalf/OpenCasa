@@ -76,19 +76,7 @@ examples/apps/                  # Example app manifests + scripts
 
 ### HIGH — Bugs
 
-7. **Frontend API client endpoints mismatch backend** (`frontend/src/lib/api.js:51-54`)
-   - `registerApp()` → POST `/apps/register` (does not exist in backend)
-   - `startApp(id)` → POST `/apps/start` with `{id}` body (backend expects POST `/apps/<id>/start`)
-   - `stopApp(id)` → POST `/apps/stop` with `{id}` body (backend expects POST `/apps/<id>/stop`)
-   - `appStatus(id)` → GET `/apps/status?id=...` (does not exist; backend has GET `/apps/<id>`)
-   - **Fix**: Rewrite these functions to match backend routes:
-     ```js
-     startApp: (id) => request('POST', `/apps/${id}/start`),
-     stopApp: (id) => request('POST', `/apps/${id}/stop`),
-     runApp: (id) => request('POST', `/apps/${id}/run`),
-     uninstallApp: (id) => request('POST', `/apps/${id}/uninstall`),
-     ```
-   - Remove `registerApp` and `appStatus` or implement the backend endpoints.
+7. ~~**Frontend API client endpoints mismatch backend**~~ `[FIXED]`
 
 8. ~~**Memory stats overwritten after UVM/vmstat calculation**~~ `[FIXED]`
 
@@ -120,8 +108,8 @@ examples/apps/                  # Example app manifests + scripts
 
 17. **No test suite** — No unit or integration tests exist.
 18. **No `package-lock.json`** — Frontend dependency versions are not locked.
-19. **Widget cache TTL is 30s** (`appmanager.py:308`) but dashboard polls every 5s — wasted calls.
-20. **`notifications.py:32`** — Notification ID uses `strftime("%H%M%S.%f")` which can collide on rapid pushes.
+19. ~~**Widget cache TTL is 30s but dashboard polled every 5s**~~ `[FIXED]` — dashboard now polls every 30s.
+20. ~~**`notifications.py:32` — Notification ID uses `strftime("%H%M%S.%f")` which can collide on rapid pushes.**~~ `[FIXED]`
 
 ### NEW — Frontend / Backend Integration Bugs
 
