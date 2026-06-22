@@ -288,10 +288,11 @@ def _list_interfaces():
     ifaces = []
     obe = _is_openbsd()
     if obe:
-        for line in _run(["/sbin/ifconfig", "-l"]):
-            line = line.strip()
-            if not line.startswith("lo"):
-                ifaces.append(line)
+        for line in _run(["/sbin/ifconfig", "-a"]):
+            if ":" in line and not line.startswith("\t") and not line.startswith(" "):
+                name = line.split(":", 1)[0].strip()
+                if name and not name.startswith("lo"):
+                    ifaces.append(name)
     else:
         try:
             with open("/proc/net/dev") as f:
