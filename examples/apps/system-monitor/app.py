@@ -84,8 +84,8 @@ cpu = get_cpu()
 mem = get_mem()
 upt = get_uptime()
 
-out = {'CPU': {'label': f'{cpu["used"]}%'}, 'Memory': {'label': f'{mem["used_pct"]}%', 'detail': f'{mem["free_mb"]}M free / {mem["total_mb"]}M total'}}
+out = {'System': f'CPU {cpu["used"]}%  Mem {mem["used_pct"]}% ({mem["free_mb"]}M free)'}
 if upt:
-    out['Uptime'] = {'label': upt}
+    out['Uptime'] = upt
 
 print(json.dumps(out))
