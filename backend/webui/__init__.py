@@ -474,24 +474,40 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
                     avatar = av
             return self._send_json({"exists": exists, "avatar": avatar, "name": username})
 
-        # Verify root password change — no auth required (tamper recovery)
+        # Verify root password change — step 1 of tamper recovery
         if path == "/api/v1/auth/verify-root-change":
             data = self._json_body()
             if not data or not data.get("password"):
                 return self._send_error(400, "missing password")
-            from .database import get as _get, set as _set, delete as _del
+            from .database import get as _get, set as _set
             from .auth import verify_password
             prev_hash = _get("_root_password_previous")
             if not prev_hash:
                 return self._send_error(400, "no previous root password stored")
-            if verify_password(data["password"], prev_hash):
-                pending = _get("_root_pending_hash")
-                if pending:
-                    _set("_root_password_previous", pending)
-                _del("_root_tamper")
-                _del("_root_pending_hash")
-                return self._send_json({"success": True})
-            return self._send_error(403, "incorrect password")
+            if not verify_password(data["password"], prev_hash):
+                return self._send_error(403, "incorrect password")
+            _set("_root_recovery", "true")
+            return self._send_json({"verified": True})
+
+        # Set new root password after tamper recovery — step 2
+        if path == "/api/v1/auth/recovery-password":
+            data = self._json_body()
+            if not data or not data.get("password"):
+                return self._send_error(400, "missing password")
+            if len(data["password"]) < 4:
+                return self._send_error(400, "password too short")
+            from .database import get as _get, set as _set, delete as _del
+            if _get("_root_recovery") != "true":
+                return self._send_error(403, "verify old password first")
+            from .auth import hash_password
+            new_hash = hash_password(data["password"])
+            config["auth"]["root_password"] = new_hash
+            save_config()
+            _set("_root_password_previous", new_hash)
+            _del("_root_tamper")
+            _del("_root_recovery")
+            _del("_root_pending_hash")
+            return self._send_json({"success": True})
 
         if not self._check_auth():
             return

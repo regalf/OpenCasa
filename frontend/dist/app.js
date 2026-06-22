@@ -54,6 +54,7 @@ let state = {
   loginUser: '',
   avatar: '',
   tampered: false,
+  tamperStep: 1,
   tamperError: '',
   tamperLoading: false,
 };
@@ -602,13 +603,42 @@ async function verifyRootChange() {
   render();
   try {
     const res = await api('POST', '/auth/verify-root-change', {password: pass});
+    if (res && res.verified) {
+      state.tamperStep = 2;
+      state.tamperError = '';
+      state.tamperLoading = false;
+      render();
+    } else {
+      state.tamperError = t('auth.incorrect_password');
+      state.tamperLoading = false;
+      render();
+    }
+  } catch(e) {
+    state.tamperError = e.message || t('auth.incorrect_password');
+    state.tamperLoading = false;
+    render();
+  }
+}
+
+async function recoverySetPassword() {
+  const pass = document.getElementById('tamper-new-pass')?.value;
+  const confirm = document.getElementById('tamper-confirm-pass')?.value;
+  if (!pass || !confirm) { state.tamperError = t('setup.fill_all'); render(); return; }
+  if (pass !== confirm) { state.tamperError = t('setup.pass_mismatch'); render(); return; }
+  if (pass.length < 4) { state.tamperError = t('setup.pass_short'); render(); return; }
+  state.tamperLoading = true;
+  state.tamperError = '';
+  render();
+  try {
+    const res = await api('POST', '/auth/recovery-password', {password: pass});
     if (res && res.success) {
       state.tampered = false;
+      state.tamperStep = 1;
       state.tamperError = '';
       state.tamperLoading = false;
       location.reload();
     } else {
-      state.tamperError = t('auth.incorrect_password');
+      state.tamperError = res?.error || t('auth.incorrect_password');
       state.tamperLoading = false;
       render();
     }
@@ -922,19 +952,36 @@ function render() {
   // Tamper overlay — shown on top of everything
   if (state.tampered) {
     const sp = state.tamperLoading ? 'disabled' : '';
-    app.innerHTML = `
-      <div class="tamper-overlay">
-        <div class="tamper-box">
-          <h2>${t('auth.tamper_title')}</h2>
-          <p>${t('auth.tamper_desc')}</p>
-          <div style="margin-top:1.5rem">
-            <input id="tamper-old-pass" type="password" placeholder="${t('auth.old_root_password')}" style="width:100%;padding:.6rem;margin-bottom:.5rem;background:#1e293b;color:#f1f5f9;border:1px solid #7f1d1d;border-radius:6px;box-sizing:border-box">
-            <button class="btn btn-danger" style="width:100%" onclick="verifyRootChange()" ${sp}>${state.tamperLoading ? t('app.loading') : t('auth.verify')}</button>
+    if (state.tamperStep === 1) {
+      app.innerHTML = `
+        <div class="tamper-overlay">
+          <div class="tamper-box">
+            <h2>${t('auth.tamper_title')}</h2>
+            <p>${t('auth.tamper_desc')}</p>
+            <div style="margin-top:1.5rem">
+              <input id="tamper-old-pass" type="password" placeholder="${t('auth.old_root_password')}" style="width:100%;padding:.6rem;margin-bottom:.5rem;background:#1e293b;color:#f1f5f9;border:1px solid #7f1d1d;border-radius:6px;box-sizing:border-box">
+              <button class="btn btn-danger" style="width:100%" onclick="verifyRootChange()" ${sp}>${state.tamperLoading ? t('app.loading') : t('auth.verify')}</button>
+            </div>
+            ${state.tamperError ? '<p style="color:#fca5a5;margin-top:.5rem">' + escapeHtml(state.tamperError) + '</p>' : ''}
           </div>
-          ${state.tamperError ? '<p style="color:#fca5a5;margin-top:.5rem">' + escapeHtml(state.tamperError) + '</p>' : ''}
         </div>
-      </div>
-    `;
+      `;
+    } else if (state.tamperStep === 2) {
+      app.innerHTML = `
+        <div class="tamper-overlay">
+          <div class="tamper-box">
+            <h2>${t('auth.recovery_title')}</h2>
+            <p>${t('auth.recovery_desc')}</p>
+            <div style="margin-top:1.5rem">
+              <input id="tamper-new-pass" type="password" placeholder="${t('auth.new_root_password')}" style="width:100%;padding:.6rem;margin-bottom:.5rem;background:#1e293b;color:#f1f5f9;border:1px solid #7f1d1d;border-radius:6px;box-sizing:border-box">
+              <input id="tamper-confirm-pass" type="password" placeholder="${t('setup.confirm')}" style="width:100%;padding:.6rem;margin-bottom:.5rem;background:#1e293b;color:#f1f5f9;border:1px solid #334155;border-radius:6px;box-sizing:border-box">
+              <button class="btn btn-success" style="width:100%" onclick="recoverySetPassword()" ${sp}>${state.tamperLoading ? t('app.loading') : t('setup.create')}</button>
+            </div>
+            ${state.tamperError ? '<p style="color:#fca5a5;margin-top:.5rem">' + escapeHtml(state.tamperError) + '</p>' : ''}
+          </div>
+        </div>
+      `;
+    }
     return;
   }
 
@@ -1444,4 +1491,5 @@ window.createUser = createUser;
 window.deleteUser = deleteUser;
 window.checkUser = checkUser;
 window.verifyRootChange = verifyRootChange;
+window.recoverySetPassword = recoverySetPassword;
 })();

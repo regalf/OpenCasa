@@ -136,5 +136,8 @@
   "auth.tamper_desc": "La password di root e' stata cambiata al di fuori dell'interfaccia. Inserisci la PASSWORD PRECEDENTE per verificare il cambiamento.",
   "auth.old_root_password": "Password root precedente",
   "auth.verify": "Verifica",
-  "auth.incorrect_password": "Password errata"
+  "auth.incorrect_password": "Password errata",
+  "auth.recovery_title": "Imposta Nuova Password Root",
+  "auth.recovery_desc": "Verifica superata. Scegli una nuova password per proteggere il sistema.",
+  "auth.new_root_password": "Nuova password root"
 }

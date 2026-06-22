@@ -136,5 +136,8 @@
   "auth.tamper_desc": "The root password has been changed outside the UI. Enter the PREVIOUS root password to verify the change.",
   "auth.old_root_password": "Previous root password",
   "auth.verify": "Verify",
-  "auth.incorrect_password": "Incorrect password"
+  "auth.incorrect_password": "Incorrect password",
+  "auth.recovery_title": "Set New Root Password",
+  "auth.recovery_desc": "Verification passed. Choose a new root password to secure the system.",
+  "auth.new_root_password": "New root password"
 }
