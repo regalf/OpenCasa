@@ -73,13 +73,32 @@ def _ensure_app_user():
         logger.info("app user '%s' created (uid=%d, home=%s)", APP_USER, _APP_USER_UID, _APP_USER_HOME)
         new_user = True
 
-    # Set password only on first creation (not every boot)
-    if new_user:
+    # Set password on first creation OR if currently locked (*)
+    if new_user or _password_is_locked():
         app_pass = config.get('app_password', '')
         if app_pass:
             _set_app_password(app_pass)
         if app_pass == "123456":
             logger.warning("DEFAULT PASSWORD for app user '%s' is '123456' — CHANGE IT in opencasa.json (app_password)", APP_USER)
+
+
+def _password_is_locked():
+    """Return True if APP_USER's password field is '*' (locked/unset)."""
+    import os
+    for path in ('/etc/master.passwd', '/etc/shadow'):
+        if not os.path.isfile(path):
+            continue
+        try:
+            with open(path) as f:
+                for line in f:
+                    if line.startswith(APP_USER + ':'):
+                        parts = line.split(':')
+                        if len(parts) >= 2 and parts[1] in ('*', '!', '!!', ''):
+                            return True
+                        return False
+        except PermissionError:
+            pass
+    return False
 
 
 def _set_app_password(password):
@@ -116,7 +135,15 @@ def _set_app_password(password):
         except (FileNotFoundError, subprocess.TimeoutExpired):
             continue
 
-    # 3) encrypt + usermod (OpenBSD)
+    # 3) passwd via pty (works on most Unix including OpenBSD)
+    try:
+        _set_password_via_pty(user, password)
+        logger.info("password set for '%s' via passwd (pty)", user)
+        return True
+    except Exception as e:
+        logger.debug("passwd pty failed: %s", e)
+
+    # 4) encrypt + usermod (OpenBSD fallback)
     for enc in (['encrypt', '-b', '8'], ['encrypt', '-b', '5'], ['encrypt']):
         try:
             r = subprocess.run(enc + [password],
@@ -134,14 +161,6 @@ def _set_app_password(password):
                 continue
         except (FileNotFoundError, subprocess.TimeoutExpired):
             continue
-
-    # 4) passwd via pty (fallback, works on most Unix)
-    try:
-        _set_password_via_pty(user, password)
-        logger.info("password set for '%s' via passwd (pty)", user)
-        return True
-    except Exception as e:
-        logger.debug("passwd pty failed: %s", e)
 
     logger.warning("could not set password for '%s'", user)
     return False
