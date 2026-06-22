@@ -287,16 +287,24 @@ def _get_network_stats():
     tx = 0
     obe = _is_openbsd()
     if obe:
+        seen = set()
         for line in _run(["/usr/bin/netstat", "-i", "-b", "-n"]):
-            if line.startswith("lo"):  # skip loopback
-                continue
             parts = line.split()
-            if len(parts) >= 7 and parts[0] != "Name" and parts[0] != "Interface":
-                try:
-                    rx += int(parts[6])  # Ibytes
-                    tx += int(parts[8])  # Obytes
-                except (ValueError, IndexError):
-                    pass
+            if len(parts) < 7:
+                continue
+            name = parts[0]
+            if name in ("Name", "Interface"):
+                continue
+            if name.startswith("lo"):
+                continue
+            if name in seen:
+                continue
+            seen.add(name)
+            try:
+                rx += int(parts[6])  # Ibytes
+                tx += int(parts[8])  # Obytes
+            except (ValueError, IndexError):
+                pass
     else:
         try:
             with open("/proc/net/dev") as f:
