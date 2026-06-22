@@ -269,7 +269,9 @@ def get_system_stats():
         mem["free"] = max(mem["free"], 0)
         mem["used"] = max(mem["total"] - mem["free"], 0)
 
-    net = _get_network_stats()
+    iface = config.get("system", {}).get("network_interface", "")
+    net = _get_network_stats(iface)
+    net["interface"] = iface
 
     return {
         "cpu": cpu,
@@ -281,8 +283,36 @@ def get_system_stats():
     }
 
 
-def _get_network_stats():
-    """Return total bytes received/transmitted across all non-loopback interfaces."""
+def _list_interfaces():
+    """Return list of non-loopback interface names."""
+    ifaces = []
+    obe = _is_openbsd()
+    if obe:
+        seen = set()
+        for line in _run(["/usr/bin/netstat", "-i", "-b", "-n"]):
+            parts = line.split()
+            if len(parts) < 7:
+                continue
+            name = parts[0]
+            if name in ("Name", "Interface") or name.startswith("lo") or name in seen:
+                continue
+            seen.add(name)
+            ifaces.append(name)
+    else:
+        try:
+            with open("/proc/net/dev") as f:
+                for line in f:
+                    if ":" in line:
+                        name = line.split(":", 1)[0].strip()
+                        if not name.startswith("lo"):
+                            ifaces.append(name)
+        except OSError:
+            pass
+    return ifaces
+
+
+def _get_network_stats(iface_filter=""):
+    """Return total bytes received/transmitted. If iface_filter is set, only that interface."""
     rx = 0
     tx = 0
     obe = _is_openbsd()
@@ -293,13 +323,11 @@ def _get_network_stats():
             if len(parts) < 7:
                 continue
             name = parts[0]
-            if name in ("Name", "Interface"):
-                continue
-            if name.startswith("lo"):
-                continue
-            if name in seen:
+            if name in ("Name", "Interface") or name.startswith("lo") or name in seen:
                 continue
             seen.add(name)
+            if iface_filter and name != iface_filter:
+                continue
             try:
                 rx += int(parts[6])  # Ibytes
                 tx += int(parts[8])  # Obytes
@@ -316,6 +344,8 @@ def _get_network_stats():
                 iface, data = line.split(":", 1)
                 iface = iface.strip()
                 if iface.startswith("lo"):
+                    continue
+                if iface_filter and iface != iface_filter:
                     continue
                 vals = data.split()
                 if len(vals) >= 9:

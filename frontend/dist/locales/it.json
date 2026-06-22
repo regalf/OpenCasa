@@ -37,6 +37,7 @@
   "dashboard.net_tx": "Upload",
   "dashboard.cpu": "CPU",
   "dashboard.cpu_used": "% utilizzato",
+  "dashboard.net_all": "Tutte le interfacce",
   "dashboard.cpu_core": "core @ MHz",
   "dashboard.memory": "Memoria",
   "dashboard.storage": "Storage",

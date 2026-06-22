@@ -46,6 +46,8 @@ let state = {
   widgetsData: {},
   widgetPrefs: {},
   dashboardPrefs: {},
+  interfaces: [],
+  selectedInterface: '',
   appViewId: null,
   appStarting: null,
   setupNeeded: false,
@@ -222,13 +224,20 @@ function closeSidebar() { const el = document.getElementById('sidebar'); if (el)
 
 async function fetchAll() {
   try {
-    const [s, st, a, n, i] = await Promise.all([
+    const [s, st, a, n, i, ifs] = await Promise.all([
       api('GET','/system/stats').catch(() => null),
       api('GET','/storage').catch(() => null),
       api('GET','/apps').catch(() => null),
       api('GET','/notifications').catch(() => null),
       api('GET','/system/info').catch(() => null),
+      api('GET','/system/interfaces').catch(() => null),
     ]);
+    if (ifs && ifs.interfaces) {
+      state.interfaces = ifs.interfaces;
+    }
+    if (s && s.network && s.network.interface !== undefined) {
+      state.selectedInterface = s.network.interface;
+    }
     if (s && s.cpu) { state.stats = s; if (s.language) await loadLocale(s.language); }
     if (st && st.filesystems) state.storage = st;
     if (a && a.apps) {
@@ -598,6 +607,15 @@ async function stopWebApp(id) {
   await api('POST','/apps/' + encodeURIComponent(id) + '/stop');
   showAppDetail(id);
   loadApps();
+}
+
+async function changeInterface(iface) {
+  state.selectedInterface = iface;
+  state._prevNet = null;
+  try {
+    await api('POST', '/system/network-interface', {interface: iface});
+    fetchStats();
+  } catch(e) {}
 }
 
 async function verifyRootChange() {
@@ -1164,6 +1182,14 @@ function renderDashboard() {
               <span class="dim">${t('dashboard.net_tx')}</span>
               <span id="net-tx">${netTx ? formatBytes(netTx) : '—'}</span>
               <span id="net-tx-rate" class="dim" style="margin-left:.3rem"></span>
+            </div>
+            <div style="margin-top:.3rem">
+              <select id="net-iface" onchange="changeInterface(this.value)" style="background:#1e293b;color:#f1f5f9;border:1px solid #334155;border-radius:4px;font-size:.75rem;padding:.15rem .3rem;width:100%">
+                ${state.interfaces.map(iface =>
+                  `<option value="${escapeHtml(iface)}"${iface === state.selectedInterface ? ' selected' : ''}>${escapeHtml(iface)}</option>`
+                ).join('')}
+                <option value=""${!state.selectedInterface ? ' selected' : ''}>${t('dashboard.net_all')}</option>
+              </select>
             </div>
           </div>
         </div>

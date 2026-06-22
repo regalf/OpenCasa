@@ -32,7 +32,7 @@ DEFAULT_CONFIG = {
         "allowed_prefixes": ["/home", "/var/www", "/mnt", "/tmp", "/opt"],
         "max_upload_size": 100,
     },
-    "system": {"platform": "auto"},
+    "system": {"platform": "auto", "network_interface": ""},
     "ui": {"memory_unit": "GB"},
     "log": {"level": "info", "file": "/var/log/webui.log", "max_size": 5242880, "backup_count": 3},
     "apps_autostart": True,
@@ -333,6 +333,10 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
             from .system import get_system_info
             return self._send_json(get_system_info())
 
+        if path == "/api/v1/system/interfaces":
+            from .system import _list_interfaces
+            return self._send_json({"interfaces": _list_interfaces()})
+
         if path == "/api/v1/apps" or path == "/api/v1/apps/":
             from .appmanager import list_apps
             return self._send_json(list_apps())
@@ -522,6 +526,15 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
 
         if not self._check_auth():
             return
+
+        # Set network interface to monitor
+        if path == "/api/v1/system/network-interface":
+            data = self._json_body()
+            if not data or "interface" not in data:
+                return self._send_error(400, "missing interface")
+            config.setdefault("system", {})["network_interface"] = data["interface"]
+            save_config()
+            return self._send_json({"success": True})
 
         if path == "/api/v1/files/write":
             from .filemanager import handle_write_file

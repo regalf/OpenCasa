@@ -30,7 +30,8 @@
     "backup_count": 3
   },
   "system": {
-    "platform": "auto"
+    "platform": "auto",
+    "network_interface": ""
   },
   "ui": {
     "memory_unit": "MB",
