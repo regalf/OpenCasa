@@ -117,23 +117,21 @@ def _set_app_password(password):
             continue
 
     # 3) encrypt + usermod (OpenBSD)
-    for enc_cmd in (['encrypt', '-b', '8'], ['encrypt']):
+    for enc in (['encrypt', '-b', '8'], ['encrypt', '-b', '5'], ['encrypt']):
         try:
-            r = subprocess.run(enc_cmd, input=f'{password}\n'.encode(),
+            r = subprocess.run(enc + [password],
                                capture_output=True, text=False, timeout=10)
             if r.returncode != 0 or not r.stdout.strip():
                 continue
             hashed = r.stdout.decode('ascii', errors='replace').strip()
-            for cmd in (['usermod', '-p', hashed, user],
-                        ['chpass', '-a', hashed, user]):
-                try:
-                    r2 = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
-                    if r2.returncode == 0:
-                        logger.info("password set for '%s' via %s+%s",
-                                    user, enc_cmd[0], cmd[0])
-                        return True
-                except (FileNotFoundError, subprocess.TimeoutExpired):
-                    continue
+            try:
+                r2 = subprocess.run(['usermod', '-p', hashed, user],
+                                    capture_output=True, text=True, timeout=10)
+                if r2.returncode == 0:
+                    logger.info("password set for '%s' via %s+usermod", user, enc[0])
+                    return True
+            except (FileNotFoundError, subprocess.TimeoutExpired):
+                continue
         except (FileNotFoundError, subprocess.TimeoutExpired):
             continue
 
