@@ -182,6 +182,8 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", mime or "application/octet-stream")
         self.send_header("Access-Control-Allow-Origin", "*")
+        if mime and (mime.endswith("/javascript") or mime == "text/css"):
+            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
         self.end_headers()
         with open(filepath, "rb") as f:
             self._write(f.read())

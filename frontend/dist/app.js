@@ -61,19 +61,25 @@ async function api(method, path, body) {
     body = JSON.stringify(body);
   }
   if (token) headers['Authorization'] = 'Bearer ' + token;
-  const res = await fetch(BASE + path, { method, headers, body });
-  if (!res.ok) {
-    if (res.status === 401) {
-      token = null; localStorage.removeItem('token');
-      state.loggedIn = false; render();
+  const ac = new AbortController();
+  const to = setTimeout(() => ac.abort(), 10000);
+  try {
+    const res = await fetch(BASE + path, { method, headers, body, signal: ac.signal });
+    if (!res.ok) {
+      if (res.status === 401) {
+        token = null; localStorage.removeItem('token');
+        state.loggedIn = false; render();
+      }
+      const err = await res.json().catch(() => ({error: res.statusText}));
+      throw new Error(err.error || res.statusText);
     }
-    const err = await res.json().catch(() => ({error: res.statusText}));
-    throw new Error(err.error || res.statusText);
+    if (path === '/files/download') return res;
+    if (res.headers.get('content-type')?.includes('application/json')) return res.json();
+    const text = await res.text();
+    try { return JSON.parse(text); } catch(e) { return text; }
+  } finally {
+    clearTimeout(to);
   }
-  if (path === '/files/download') return res;
-  if (res.headers.get('content-type')?.includes('application/json')) return res.json();
-  const text = await res.text();
-  try { return JSON.parse(text); } catch(e) { return text; }
 }
 
 // ── Setup (first boot) ──
@@ -119,15 +125,24 @@ async function checkUser() {
   const errEl = document.getElementById('login-error');
   if (!user) { if(errEl) errEl.textContent = ''; return; }
   try {
-    const res = await fetch(BASE + '/users/check', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: user }),
-    }).then(r => r.json());
+    const ac = new AbortController();
+    const to = setTimeout(() => ac.abort(), 10000);
+    let res;
+    try {
+      res = await fetch(BASE + '/users/check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: user }),
+        signal: ac.signal,
+      }).then(r => r.json());
+    } finally {
+      clearTimeout(to);
+    }
     if (res.exists) {
       state.loginPhase = 2;
       state.loginUser = res.name || user;
       state.loginAvatar = res.avatar || '';
+      if (errEl) errEl.textContent = '';
       render();
       setTimeout(() => document.getElementById('login-pass')?.focus(), 50);
     } else {
@@ -1277,7 +1292,8 @@ setInterval(() => {
 }, 5000);
 
 // Initial render
-loadLocale('en').then(async () => {
+const browserLang = (navigator.language || 'en').split('-')[0];
+loadLocale(browserLang === 'it' ? 'it' : 'en').then(async () => {
   await checkSetup();
   if (token && !state.setupNeeded) {
     // Verify token still valid
