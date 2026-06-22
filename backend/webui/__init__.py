@@ -17,6 +17,7 @@ import threading
 import urllib.parse
 from datetime import datetime, timezone
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from logging.handlers import RotatingFileHandler
 
 DEFAULT_CONFIG = {
     "server": {"host": "0.0.0.0", "port": 80},
@@ -33,7 +34,7 @@ DEFAULT_CONFIG = {
     },
     "system": {"platform": "auto"},
     "ui": {"memory_unit": "GB"},
-    "log": {"level": "info", "file": "/var/log/webui.log"},
+    "log": {"level": "info", "file": "/var/log/webui.log", "max_size": 5242880, "backup_count": 3},
     "apps_autostart": True,
     "app_user": "opencasa",
     "app_password": "123456",
@@ -266,6 +267,13 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
         if path == "/api/v1/auth/status":
             from .database import get as _get
             return self._send_json({"tamper": _get("_root_tamper") == "true"})
+
+        # Healthcheck — no auth required
+        if path == "/api/v1/health":
+            return self._send_json({
+                "status": "ok",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
 
         if not self._check_auth():
             return
@@ -717,7 +725,9 @@ def main():
 
     load_config(args.config)
     if not args.debug and config["log"]["file"]:
-        fh = logging.FileHandler(config["log"]["file"])
+        max_bytes = config.get("log", {}).get("max_size", 5 * 1024 * 1024)
+        backup_count = config.get("log", {}).get("backup_count", 3)
+        fh = RotatingFileHandler(config["log"]["file"], maxBytes=max_bytes, backupCount=backup_count)
         fh.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
         logging.getLogger().addHandler(fh)
 

@@ -34,6 +34,7 @@ let state = {
   info: {},
   files: [],
   filePath: '/',
+  filesLoading: false,
   uploadProgress: -1,
   editing: null,
   editorContent: '',
@@ -255,12 +256,15 @@ async function fetchAll() {
 // ── File manager ──
 
 async function loadFiles(path) {
+  state.filesLoading = true;
+  state.error = '';
+  render();
   try {
     const res = await api('GET', '/files?path=' + encodeURIComponent(path));
     state.filePath = res.path;
     state.files = res.entries || [];
-    state.error = '';
-  } catch(e) { state.error = e.message; }
+    state.filesLoading = false;
+  } catch(e) { state.error = e.message; state.filesLoading = false; }
   render();
 }
 
@@ -1239,6 +1243,7 @@ function renderFileManager() {
       </div>
     ` : ''}
     ${state.error ? `<p style="color:#f87171;margin-bottom:.5rem">${escapeHtml(state.error)}</p>` : ''}
+    ${state.filesLoading ? `<div class="loading-spinner"></div>` : ''}
     ${state.uploadProgress >= 0 ? `
       <div class="progress-bar">
         <div class="progress-bar-fill" style="width:${state.uploadProgress}%"></div>

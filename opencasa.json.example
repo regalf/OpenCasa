@@ -25,7 +25,9 @@
   },
   "log": {
     "level": "info",
-    "file": "/var/log/webui.log"
+    "file": "/var/log/webui.log",
+    "max_size": 5242880,
+    "backup_count": 3
   },
   "system": {
     "platform": "auto"

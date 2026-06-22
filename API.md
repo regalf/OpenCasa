@@ -54,7 +54,46 @@ Verify that the current token is valid.
 
 **Response `200`:**
 ```json
-{"ok": true, "user": "admin"}
+{"ok": true, "user": "admin", "is_root": true, "avatar": "data:image/..."}
+```
+
+### `GET /api/v1/auth/status`
+Check if the system is in tamper mode (no auth required).
+
+**Response `200`:**
+```json
+{"tamper": false}
+```
+
+### `POST /api/v1/auth/verify-root-change`
+Step 1 of tamper recovery: verify the previous root password (no auth required).
+
+**Request body:**
+```json
+{"password": "previous-root-password"}
+```
+
+**Response `200`:**
+```json
+{"verified": true}
+```
+
+**Response `403`:**
+```json
+{"error": "incorrect password"}
+```
+
+### `POST /api/v1/auth/recovery-password`
+Step 2 of tamper recovery: set a new root password after verification (no auth required).
+
+**Request body:**
+```json
+{"password": "new-root-password"}
+```
+
+**Response `200`:**
+```json
+{"success": true}
 ```
 
 ---
@@ -111,6 +150,19 @@ Change the current user's password. Requires `current_password` for verification
 **Response `403`:**
 ```json
 {"error": "current password does not match"}
+```
+
+### `POST /api/v1/users/check`
+Check if a username exists (no auth required). Used by the two-phase login flow.
+
+**Request body:**
+```json
+{"username": "alice"}
+```
+
+**Response `200`:**
+```json
+{"exists": true, "avatar": "data:image/...", "name": "alice"}
 ```
 
 ### `POST /api/v1/users/avatar`
@@ -180,6 +232,14 @@ Host system information.
 
 Fields vary by platform. On OpenBSD, values come from sysctl; on Linux, from uname.
 
+### `GET /api/v1/health`
+Healthcheck endpoint (no auth required).
+
+**Response `200`:**
+```json
+{"status": "ok", "timestamp": "2026-06-22T12:00:00+00:00"}
+```
+
 ### `GET /api/v1/storage`
 Filesystem disk usage (via `df -h`).
 
@@ -197,6 +257,14 @@ Filesystem disk usage (via `df -h`).
     }
   ]
 }
+```
+
+### `GET /api/v1/disks`
+List available disk devices (root only).
+
+**Response `200`:**
+```json
+{"disks": [{"device": "sd0", "size": "238.5G", "mount": "/"}, {"device": "sd1i", "size": "28.9G", "mount": "/mnt/usb"}]}
 ```
 
 ### `POST /api/v1/disks/mount`
