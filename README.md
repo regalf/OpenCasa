@@ -219,7 +219,6 @@ Optimized for PowerPC G3/G4/G5 (300 MHz–2 GHz, 256 MB–1 GB RAM):
 - No npm/node/webpack — frontend is a single HTML file
 - No CDN — zero network requests after initial load
 - No browser framework — vanilla JS, direct DOM manipulation
-- No Monaco Editor — textarea instead (Monaco is 15+ MB)
 - No icon HTTP requests in sidebar — CSS letter initials
 - Targeted DOM updates — avoids full re-render on auto-refresh
 - Partial API resilience — one failed endpoint doesn't break the page
