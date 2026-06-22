@@ -105,7 +105,7 @@ body{
   font-weight:700;font-size:1.2rem;margin-bottom:.2rem
 }
 .app-card-name{font-size:.8rem;text-align:center;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
-.app-card-type{display:inline-flex;align-items:center;line-height:1;font-size:.65rem;padding:.15rem .5rem;border-radius:3px;color:#94a3b8;white-space:nowrap;align-self:center}
+.app-card-type{font-size:.65rem;padding:1px 5px;border-radius:3px;color:#94a3b8;line-height:1;display:inline}
 .app-card-type.tool{background:#1e3a5f;color:#60a5fa}
 .app-card-type.widget{background:#3b1f5e;color:#c084fc}
 .app-card-type.web{background:#1e5f3a;color:#4ade80}
