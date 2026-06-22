@@ -102,6 +102,9 @@
   "apps.perm_none": "Nessun permesso speciale",
   "apps.perm_accept": "Esegui Comunque",
 
+  "apps.user_missing_title": "Utente app non trovato",
+  "apps.user_missing_desc": "L'utente di sistema 'opencasa' è necessario per eseguire le app in sandbox. Crealo manualmente: doas useradd -m opencasa && doas passwd opencasa, poi riavvia OpenCasa.",
+
   "cp.title": "Pannello di Controllo",
   "cp.create_user": "Crea Utente",
   "cp.add": "Aggiungi",

@@ -310,7 +310,7 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
 
         if path == "/api/v1/apps" or path == "/api/v1/apps/":
             from .appmanager import list_apps
-            return self._send_json({"apps": list_apps()})
+            return self._send_json(list_apps())
 
         if path.startswith("/api/v1/apps/"):
             rest = path[len("/api/v1/apps/"):].strip("/")

@@ -102,6 +102,9 @@
   "apps.perm_none": "No special permissions",
   "apps.perm_accept": "Run Anyway",
 
+  "apps.user_missing_title": "App user not found",
+  "apps.user_missing_desc": "The system user 'opencasa' is required to run apps in a sandbox. Create it manually: doas useradd -m opencasa && doas passwd opencasa, then restart OpenCasa.",
+
   "cp.title": "Control Panel",
   "cp.create_user": "Create User",
   "cp.add": "Add",

@@ -49,6 +49,7 @@ let state = {
   setupNeeded: false,
   setupLoading: false,
   users: [],
+  appUserReady: true,
   loginPhase: 1,
   loginUser: '',
   avatar: '',
@@ -226,6 +227,7 @@ async function fetchAll() {
     if (st && st.filesystems) state.storage = st;
     if (a && a.apps) {
       state.apps = a.apps;
+      state.appUserReady = a.app_user_ready !== false;
       loadWidgetPrefs();
       loadDashboardPrefs();
     }
@@ -1153,6 +1155,12 @@ function renderAppManager() {
   const d = state.appDetail;
   return `
     <h1 style="margin-bottom:1rem">${t('apps.title')}</h1>
+    ${!state.appUserReady ? `
+      <div style="background:#451a03;border:1px solid #78350f;border-radius:.5rem;padding:.8rem 1rem;margin-bottom:1rem;color:#fb923c">
+        <strong>⚠ ${t('apps.user_missing_title')}</strong>
+        <p style="margin:.3rem 0 0;font-size:.85rem">${t('apps.user_missing_desc')}</p>
+      </div>
+    ` : ''}
     ${state.apps.length === 0 ? `<p class="dim">${t('apps.empty_list')}</p>` : `
       <div class="apps-grid">
         ${state.apps.map(app => `

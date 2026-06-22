@@ -38,209 +38,31 @@ def init():
     APPS_DIR = config.get('apps_dir') or os.path.join(data_dir, 'apps')
     os.makedirs(APPS_DIR, exist_ok=True)
     APP_USER = config.get('app_user', 'opencasa')
-    _ensure_app_user()
+    _detect_app_user()
     scan_all()
     _autostart_web_apps()
 
 
-def _ensure_app_user():
+def _detect_app_user():
+    """Detect app user and set globals. Do NOT auto-create."""
     global _APP_USER_UID, _APP_USER_GID, _APP_USER_HOME
     import pwd
-    new_user = False
     try:
         pw = pwd.getpwnam(APP_USER)
         _APP_USER_UID = pw.pw_uid
         _APP_USER_GID = pw.pw_gid
         _APP_USER_HOME = pw.pw_dir
-        logger.debug("app user '%s' (uid=%d, home=%s)", APP_USER, _APP_USER_UID, _APP_USER_HOME)
+        logger.info("app user '%s' found (uid=%d)", APP_USER, _APP_USER_UID)
     except KeyError:
-        logger.info("creating app user '%s'", APP_USER)
-        for cmd in (['useradd', '-m', APP_USER], ['adduser', '-m', APP_USER], ['adduser', APP_USER]):
-            try:
-                r = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
-                if r.returncode == 0:
-                    break
-                logger.debug("useradd attempt %s failed: %s", cmd, r.stderr.strip())
-            except (FileNotFoundError, subprocess.TimeoutExpired) as e:
-                logger.debug("useradd attempt %s: %s", cmd, e)
-        else:
-            logger.warning("failed to create user '%s' — tried useradd, adduser", APP_USER)
-            return
-        pw = pwd.getpwnam(APP_USER)
-        _APP_USER_UID = pw.pw_uid
-        _APP_USER_GID = pw.pw_gid
-        _APP_USER_HOME = pw.pw_dir
-        logger.info("app user '%s' created (uid=%d, home=%s)", APP_USER, _APP_USER_UID, _APP_USER_HOME)
-        new_user = True
-
-    # Set password on first creation OR if currently locked (*)
-    if new_user or _password_is_locked():
-        app_pass = config.get('app_password', '')
-        if app_pass:
-            _set_app_password(app_pass)
-        if app_pass == "123456":
-            logger.warning("DEFAULT PASSWORD for app user '%s' is '123456' — CHANGE IT in opencasa.json (app_password)", APP_USER)
+        _APP_USER_UID = None
+        _APP_USER_GID = None
+        _APP_USER_HOME = None
+        logger.warning("app user '%s' NOT found — apps will be disabled. "
+                       "Create manually: doas useradd -m %s", APP_USER, APP_USER)
 
 
-def _password_is_locked():
-    """Return True if APP_USER's password field is '*' (locked/unset)."""
-    import os
-    for path in ('/etc/master.passwd', '/etc/shadow'):
-        if not os.path.isfile(path):
-            continue
-        try:
-            with open(path) as f:
-                for line in f:
-                    if line.startswith(APP_USER + ':'):
-                        parts = line.split(':')
-                        if len(parts) >= 2 and parts[1] in ('*', '!', '!!', ''):
-                            return True
-                        return False
-        except PermissionError:
-            pass
-    return False
-
-
-def _set_app_password(password):
-    """Set password for APP_USER trying multiple methods (Linux, OpenBSD, macOS)."""
-    user = APP_USER
-
-    # 1) chpasswd (Linux)
-    try:
-        p = subprocess.Popen(['chpasswd'], stdin=subprocess.PIPE, stderr=subprocess.PIPE)
-        p.communicate(input=f'{user}:{password}'.encode(), timeout=10)
-        if p.returncode == 0:
-            logger.info("password set for '%s' via chpasswd", user)
-            return True
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        pass
-
-    # 2) openssl + usermod (Linux)
-    for flag in ('-6', '-1'):
-        try:
-            r = subprocess.run(['openssl', 'passwd', flag, password],
-                               capture_output=True, text=True, timeout=10)
-            if r.returncode != 0 or not r.stdout.strip():
-                continue
-            hashed = r.stdout.strip()
-            for cmd in (['usermod', '-p', hashed, user],
-                        ['chpass', '-a', hashed, user]):
-                try:
-                    r2 = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
-                    if r2.returncode == 0:
-                        logger.info("password set for '%s' via %s", user, cmd[0])
-                        return True
-                except (FileNotFoundError, subprocess.TimeoutExpired):
-                    continue
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            continue
-
-    # 3) passwd via pty (works on most Unix including OpenBSD)
-    try:
-        _set_password_via_pty(user, password)
-        logger.info("password set for '%s' via passwd (pty)", user)
-        return True
-    except Exception as e:
-        logger.debug("passwd pty failed: %s", e)
-
-    # 4) encrypt + usermod (OpenBSD fallback)
-    for enc in (['encrypt', '-b', '8'], ['encrypt', '-b', '5'], ['encrypt']):
-        try:
-            r = subprocess.run(enc + [password],
-                               capture_output=True, text=False, timeout=10)
-            if r.returncode != 0 or not r.stdout.strip():
-                continue
-            hashed = r.stdout.decode('ascii', errors='replace').strip()
-            try:
-                r2 = subprocess.run(['usermod', '-p', hashed, user],
-                                    capture_output=True, text=True, timeout=10)
-                if r2.returncode == 0:
-                    logger.info("password set for '%s' via %s+usermod", user, enc[0])
-                    return True
-            except (FileNotFoundError, subprocess.TimeoutExpired):
-                continue
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            continue
-
-    logger.warning("could not set password for '%s'", user)
-    return False
-
-
-def _set_password_via_pty(user, password):
-    """Drive 'passwd user' via a pseudo-terminal to set password non-interactively."""
-    import pty, os, select, time, signal
-
-    pid, fd = pty.fork()
-    if pid == 0:
-        signal.signal(signal.SIGALRM, signal.SIG_DFL)
-        os.execvp('passwd', ['passwd', user])
-        os._exit(1)
-
-    sent = 0
-    buf = b''
-    deadline = time.time() + 15
-    ok = False
-
-    try:
-        while time.time() < deadline:
-            r, _, _ = select.select([fd], [], [], 0.3)
-            if r:
-                try:
-                    data = os.read(fd, 4096)
-                except OSError:
-                    break
-                if not data:
-                    break
-                buf += data
-                low = buf.lower()
-                if sent == 0 and b'password' in low:
-                    os.write(fd, (password + '\n').encode())
-                    sent = 1
-                    buf = b''
-                elif sent == 1 and (b'password' in low or b'again' in low or b're-enter' in low or b'confirm' in low or b'retype' in low):
-                    os.write(fd, (password + '\n').encode())
-                    sent = 2
-                    buf = b''
-            # Check if child exited (non-blocking)
-            try:
-                pid2, status = os.waitpid(pid, os.WNOHANG)
-                if pid2:
-                    if os.WIFEXITED(status):
-                        ok = os.WEXITSTATUS(status) == 0
-                    break
-            except OSError:
-                break
-
-        # If child still running after password sent, give it 2s to process
-        if not ok:
-            for _ in range(20):
-                try:
-                    pid2, status = os.waitpid(pid, os.WNOHANG)
-                    if pid2:
-                        if os.WIFEXITED(status):
-                            ok = os.WEXITSTATUS(status) == 0
-                        break
-                except OSError:
-                    break
-                time.sleep(0.1)
-            else:
-                # Child still alive — kill it
-                try:
-                    os.kill(pid, signal.SIGTERM)
-                    time.sleep(0.3)
-                    os.kill(pid, signal.SIGKILL)
-                except OSError:
-                    pass
-                os.waitpid(pid, os.WNOHANG)
-
-        return ok
-    except:
-        try:
-            os.kill(pid, signal.SIGKILL)
-            os.waitpid(pid, 0)
-        except:
-            pass
-        raise
+def app_user_ready():
+    return _APP_USER_UID is not None
 
 
 def _set_resource_limits():
@@ -342,7 +164,8 @@ def get_app(app_id):
 def list_apps():
     scan_all()
     with _cache_lock:
-        return [dict(a) for a in _cache]
+        apps = [dict(a) for a in _cache]
+        return {"apps": apps, "app_user_ready": app_user_ready()}
 
 
 def icon_path(app_id):
@@ -389,6 +212,9 @@ def run_app(app_id):
     ep = os.path.join(app['path'], app['entry'])
     if not os.path.isfile(ep):
         return {'error': f'{app["entry"]} not found'}
+
+    if not app_user_ready():
+        return {'error': 'app_user_missing', 'app_user': APP_USER}
 
     # Permission confirmation check
     if not is_app_confirmed(app_id, app['permissions']):
@@ -495,6 +321,9 @@ def start_web_app(app_id):
         return {'error': f'{app["entry"]} not found'}
     if not app['port']:
         return {'error': 'no port configured in manifest'}
+
+    if not app_user_ready():
+        return {'error': 'app_user_missing', 'app_user': APP_USER}
 
     # Permission confirmation check
     if not is_app_confirmed(app_id, app['permissions']):
