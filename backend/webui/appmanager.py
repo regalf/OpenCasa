@@ -62,6 +62,8 @@ def _detect_app_user():
 
 
 def app_user_ready():
+    if _APP_USER_UID is None:
+        _detect_app_user()
     return _APP_USER_UID is not None
 
 
@@ -84,9 +86,9 @@ def _set_resource_limits():
 
 
 def _app_preexec():
-    if _APP_USER_GID is not None:
+    if _APP_USER_UID is not None and _APP_USER_GID is not None:
+        os.initgroups(APP_USER, _APP_USER_GID)
         os.setgid(_APP_USER_GID)
-    if _APP_USER_UID is not None:
         os.setuid(_APP_USER_UID)
     os.setpgrp()
     _set_resource_limits()

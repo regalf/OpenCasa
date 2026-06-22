@@ -544,6 +544,12 @@ async function runApp(id) {
       });
       return;
     }
+    if (res && res.error === 'app_user_missing') {
+      state.error = t('apps.user_missing_title') + ': ' + t('apps.user_missing_desc');
+      state.appOutputLoading = false;
+      render();
+      return;
+    }
     state.appOutput = res;
   } catch(e) {
     state.appOutput = {error: e.message};
@@ -567,6 +573,9 @@ async function startWebApp(id) {
       startWebApp(id);
     });
     return;
+  }
+  if (res && res.error === 'app_user_missing') {
+    state.error = t('apps.user_missing_title') + ': ' + t('apps.user_missing_desc');
   }
   showAppDetail(id);
   loadApps();
@@ -732,6 +741,13 @@ async function startWebAppFromTab(id) {
         state._confirmedPerms[id] = true;
         startWebAppFromTab(id);
       });
+      return;
+    }
+
+    if (res && res.error === 'app_user_missing') {
+      state.appStarting = null;
+      state.error = t('apps.user_missing_title') + ': ' + t('apps.user_missing_desc');
+      render();
       return;
     }
 
