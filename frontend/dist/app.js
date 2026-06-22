@@ -223,7 +223,7 @@ async function fetchAll() {
       api('GET','/notifications').catch(() => null),
       api('GET','/system/info').catch(() => null),
     ]);
-    if (s && s.cpu) { state.stats = s; if (s.language) loadLocale(s.language); }
+    if (s && s.cpu) { state.stats = s; if (s.language) await loadLocale(s.language); }
     if (st && st.filesystems) state.storage = st;
     if (a && a.apps) {
       state.apps = a.apps;
@@ -1302,9 +1302,8 @@ setInterval(() => {
   if (state.loggedIn && state.view === 'dashboard') fetchAll();
 }, 5000);
 
-// Initial render
-const browserLang = (navigator.language || 'en').split('-')[0];
-loadLocale(browserLang === 'it' ? 'it' : 'en').then(async () => {
+// Initial render — start with English; backend config language loaded via fetchAll()
+loadLocale('en').then(async () => {
   await checkSetup();
   if (token && !state.setupNeeded) {
     // Verify token still valid
