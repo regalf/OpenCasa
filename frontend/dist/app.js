@@ -1424,7 +1424,19 @@ function renderControlPanel() {
   `;
 }
 
-// Auto-refresh dashboard every 30s
+// Quick poll system stats every 10s (CPU/memory/network), full dashboard every 30s
+async function fetchStats() {
+  try {
+    const s = await api('GET','/system/stats').catch(() => null);
+    if (s && s.cpu) { state.stats = s; if (s.language) await loadLocale(s.language); }
+  } catch(e) {}
+  if (state.view === 'dashboard' && document.getElementById('dash-grid')) {
+    updateDashboardValues();
+  }
+}
+setInterval(() => {
+  if (state.loggedIn && state.view === 'dashboard') fetchStats();
+}, 10000);
 setInterval(() => {
   if (state.loggedIn && state.view === 'dashboard') fetchAll();
 }, 30000);
