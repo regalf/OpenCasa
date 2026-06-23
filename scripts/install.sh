@@ -140,14 +140,19 @@ EOF
   printf "\n  ${CYAN}OpenCasa${NC} — Server Management Panel\n\n"
 }
 
+INSTALL_EXAMPLES=""
+
 show_summary() {
+  _apps="${DEST_DIR}/apps/ (empty)"
+  [ -n "$INSTALL_EXAMPLES" ] && _apps="${DEST_DIR}/apps/ (${INSTALL_EXAMPLES})"
   cat << EOF
 
 ${BOLD}Installation Summary${NC}
-  OS:          ${OS}
-  Destination: ${DEST_DIR}
-  Config:      ${CONFIG_PATH}
-  App user:    ${APP_USER}
+  OS:              ${OS}
+  Destination:     ${DEST_DIR}
+  Config:          ${CONFIG_PATH}
+  App user:        ${APP_USER}
+  Example apps:    ${INSTALL_EXAMPLES:-none}
 
 Files to install:
   ${DEST_DIR}/webui.py
@@ -157,6 +162,7 @@ Files to install:
   ${DEST_DIR}/app.js
   ${DEST_DIR}/favicon.svg
   ${DEST_DIR}/locales/
+  ${_apps}
   ${CONFIG_PATH}
   $( [ "$OS" = "openbsd" ] && echo "/etc/rc.d/webui" || echo "/etc/systemd/system/webui.service" )
 EOF
@@ -174,6 +180,23 @@ install_files() {
   cp "$SRC_DIR/frontend/dist/favicon.svg" "$DEST_DIR/" && printf "  ${GREEN}✓${NC} favicon.svg\n" || printf "  ${RED}✗${NC} favicon.svg\n"
   cp "$SRC_DIR/frontend/dist/locales/"*.json "$DEST_DIR/locales/" && printf "  ${GREEN}✓${NC} locales/*.json\n" || printf "  ${RED}✗${NC} locales/*.json\n"
   chmod -R 755 "$DEST_DIR/webui" "$DEST_DIR/webui.py"
+}
+
+install_example_apps() {
+  [ -z "$INSTALL_EXAMPLES" ] && return
+  printf "\n${BOLD}Installing example apps...${NC}\n"
+  _apps_src="$SRC_DIR/examples/apps"
+  if [ -d "$_apps_src" ]; then
+    for _app_dir in "$_apps_src"/*/; do
+      _app_name=$(basename "$_app_dir")
+      mkdir -p "$DEST_DIR/apps/$_app_name"
+      cp -r "$_app_dir"* "$DEST_DIR/apps/$_app_name/"
+      printf "  ${GREEN}✓${NC} apps/%s\n" "$_app_name"
+    done
+    chmod -R 755 "$DEST_DIR/apps"
+  else
+    printf "  ${YELLOW}No example apps found at %s${NC}\n" "$_apps_src"
+  fi
 }
 
 setup_config() {
@@ -281,6 +304,12 @@ ensure_root
 fetch_source
 trap cleanup EXIT
 
+printf "\n${BOLD}Example apps${NC}\n"
+printf "  OpenCasa ships with example apps (calendar, system monitor, hello-world, ...)\n"
+if prompt_yes "Install example apps to ${DEST_DIR}/apps/?"; then
+  INSTALL_EXAMPLES="yes"
+fi
+
 show_summary
 if ! prompt_yes "Proceed with installation?"; then
   printf "${YELLOW}Aborted.${NC}\n"
@@ -289,6 +318,7 @@ fi
 
 check_python
 install_files
+install_example_apps
 setup_config
 setup_app_user
 setup_service
