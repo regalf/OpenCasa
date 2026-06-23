@@ -150,8 +150,8 @@ Date.prototype.getWeek=function(){const d=new Date(Date.UTC(this.getFullYear(),t
   d.setUTCDate(d.getUTCDate()+4-(d.getUTCDay()||7));
   const y=Math.ceil((((d-new Date(Date.UTC(d.getUTCFullYear(),0,1)))/864e5)+1)/7);return y};
 
-function prev(){render(viewYear,viewMonth-1<0?(viewYear-1):viewYear,viewMonth-1<0?11:viewMonth-1)}
-function next(){render(viewYear,viewMonth+1>11?viewYear+1:viewYear,viewMonth+1>11?0:viewMonth+1)}
+function prev(){render(viewMonth-1<0?viewYear-1:viewYear,viewMonth-1<0?11:viewMonth-1)}
+function next(){render(viewMonth+1>11?viewYear+1:viewYear,viewMonth+1>11?0:viewMonth+1)}
 function today(){const n=new Date();render(n.getFullYear(),n.getMonth());pick(n.getDate())}
 
 // Init
