@@ -158,6 +158,8 @@ def scan_all():
                 if a['id'] == info['app_id'] and _alive(pid):
                     a['status'] = 'running'
                     a['pid'] = pid
+                    if 'port' in info:
+                        a['port'] = info['port']
     return apps
 
 
@@ -338,6 +340,16 @@ def _count_running():
     return alive
 
 
+def _resolve_port(app_id, manifest_port):
+    """Resolve effective port: config override → manifest → error."""
+    overrides = config.get('apps', {}).get('ports', {})
+    if app_id in overrides:
+        return int(overrides[app_id])
+    if manifest_port:
+        return int(manifest_port)
+    return None
+
+
 def start_web_app(app_id):
     app = get_app(app_id)
     if not app:
@@ -347,8 +359,9 @@ def start_web_app(app_id):
     ep = os.path.join(app['path'], app['entry'])
     if not os.path.isfile(ep):
         return {'error': f'{app["entry"]} not found'}
-    if not app['port']:
-        return {'error': 'no port configured in manifest'}
+    effective_port = _resolve_port(app_id, app.get('port'))
+    if not effective_port:
+        return {'error': 'no port configured in manifest or config apps.ports'}
 
     if not app_user_ready():
         return {'error': 'app_user_missing', 'app_user': APP_USER}
@@ -361,17 +374,18 @@ def start_web_app(app_id):
     if app['permissions'] and not is_app_confirmed(app_id, app['permissions']):
         return {'error': 'permission_required', 'permissions': app['permissions']}
 
-    port = config.get('server', {}).get('port', 80)
+    srv_port = config.get('server', {}).get('port', 80)
     ctx = json.dumps({
         'app_id': app['id'],
         'name': app['name'],
         'permissions': app['permissions'],
-        'api_url': f'http://localhost:{port}',
-        'port': app['port'],
+        'api_url': f'http://localhost:{srv_port}',
+        'port': effective_port,
     })
 
     env = os.environ.copy()
     env['OPENCASA_CONTEXT'] = ctx
+    env['OPENCASA_APP_PORT'] = str(effective_port)
     if _APP_USER_HOME:
         env['HOME'] = _APP_USER_HOME
 
@@ -384,12 +398,19 @@ def start_web_app(app_id):
         )
         pid = proc.pid
         with _cache_lock:
-            _running[pid] = {'app_id': app_id, 'proc': proc, 'start_time': time.time(), 'type': 'web'}
+            _running[pid] = {
+                'app_id': app_id,
+                'proc': proc,
+                'start_time': time.time(),
+                'type': 'web',
+                'port': effective_port,
+            }
             for a in _cache:
                 if a['id'] == app_id:
                     a['status'] = 'running'
                     a['pid'] = pid
-        return {'success': True, 'pid': pid}
+                    a['port'] = effective_port
+        return {'success': True, 'pid': pid, 'port': effective_port}
     except Exception as e:
         return {'error': str(e)}
 

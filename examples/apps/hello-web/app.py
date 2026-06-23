@@ -4,7 +4,7 @@ import http.server, json, os, time, random, platform, mimetypes
 from datetime import datetime
 
 HOST = '127.0.0.1'
-PORT = 18998
+PORT = int(os.environ.get('OPENCASA_APP_PORT', '18998'))
 DIR = os.path.dirname(os.path.abspath(__file__))
 
 counter = 0

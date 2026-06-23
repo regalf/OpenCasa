@@ -31,7 +31,8 @@
   "apps_dir": "/usr/local/webui/apps",
   "app_user": "opencasa",
   "apps": {
-    "max_processes": 10
+    "max_processes": 10,
+    "ports": {}
   },
   "master_key": ""
 }

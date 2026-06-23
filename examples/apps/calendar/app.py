@@ -3,7 +3,7 @@
 import json, os, mimetypes
 
 HOST = '127.0.0.1'
-PORT = 18997
+PORT = int(os.environ.get('OPENCASA_APP_PORT', '18997'))
 DIR = os.path.dirname(os.path.abspath(__file__))
 
 def widget_data():
