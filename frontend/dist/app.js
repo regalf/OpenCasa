@@ -203,7 +203,7 @@ function navigate(view) {
   closeSidebar();
   state.view = view; state.error = ''; state.appDetail = null; state.appOutput = null; state.appViewId = null;
   if (view === 'dashboard') { state._prevNet = null; fetchAll(); return; }
-  if (view === 'files' && state.files.length === 0) { loadFiles('/'); return; }
+  if (view === 'files' && state.files.length === 0) { loadFiles(_fileHome()); return; }
   if (view === 'apps') { loadApps(); return; }
   if (view === 'controlpanel') { loadUsers(); return; }
   render();
@@ -267,6 +267,11 @@ async function fetchAll() {
 }
 
 // ── File manager ──
+
+function _fileHome() {
+  if (state.isRoot) return '/';
+  return (state.info && state.info.app_user_home) || '/';
+}
 
 async function loadFiles(path) {
   state.filesLoading = true;
@@ -1304,7 +1309,14 @@ function renderDashboard() {
 }
 
 function renderFileManager() {
+  const userMissing = !state.isRoot && (!state.info || !state.info.app_user_home);
   return `
+    ${userMissing ? `
+      <div style="background:#451a03;border:1px solid #78350f;border-radius:.5rem;padding:.8rem 1rem;margin-bottom:1rem;color:#fb923c">
+        <strong>⚠ ${t('files.user_missing_title')}</strong>
+        <p style="margin:.3rem 0 0;font-size:.85rem">${t('files.user_missing_desc')}</p>
+      </div>
+    ` : ''}
     <div class="fm-toolbar">
       <button onclick="goUp()">⬆</button>
       <span class="fm-path">${escapeHtml(state.filePath)}</span>

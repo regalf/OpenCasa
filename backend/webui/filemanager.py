@@ -22,7 +22,18 @@ def _check_path(path, handler=None):
     if handler and getattr(handler, "_is_root", False):
         return True
     prefixes = config.get("filesystem", {}).get("allowed_prefixes", [])
-    return any(path.startswith(os.path.realpath(p)) for p in prefixes)
+    if any(path.startswith(os.path.realpath(p)) for p in prefixes):
+        return True
+    # Allow the app user's home directory even if outside allowed_prefixes
+    app_user = config.get('app_user', 'opencasa')
+    try:
+        import pwd
+        user_home = os.path.realpath(pwd.getpwnam(app_user).pw_dir)
+        if path == user_home or path.startswith(user_home + os.sep):
+            return True
+    except (KeyError, ImportError, OSError):
+        pass
+    return False
 
 
 def handle_list_files(handler, path):

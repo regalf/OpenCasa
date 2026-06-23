@@ -384,11 +384,19 @@ def get_system_info():
             info["osrelease"] = line.strip(); break
         for line in _run(["uname", "-m"]):
             info["machine"] = line.strip(); break
-        if "ostype" in info:
-            info["osversion"] = info["osrelease"]
-        for line in _run(["uname", "-m"]):
-            info["model"] = line.strip(); break
+
+    info["app_user_home"] = _get_app_user_home()
     return info
+
+
+def _get_app_user_home():
+    """Return the home directory of the configured app_user, or None."""
+    app_user = config.get('app_user', 'opencasa')
+    try:
+        import pwd
+        return pwd.getpwnam(app_user).pw_dir
+    except (KeyError, ImportError):
+        return None
 
 
 def mount_fs(device, mountpoint, fstype=""):
