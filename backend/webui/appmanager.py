@@ -266,14 +266,17 @@ def run_app(app_id):
     env = os.environ.copy()
     env['OPENCASA_CONTEXT'] = ctx
     env['OPENCASA_ACTION'] = 'widget'
+    env['OPENCASA_APP_DIR'] = app['path']
     if _APP_USER_HOME:
         env['HOME'] = _APP_USER_HOME
+
+    app_cwd = _APP_USER_HOME or app['path']
 
     try:
         proc = subprocess.Popen(
             ['python3', ep],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            text=True, env=env, cwd=app['path'],
+            text=True, env=env, cwd=app_cwd,
             preexec_fn=_app_preexec,
         )
         try:
@@ -461,14 +464,17 @@ def start_web_app(app_id):
     env = os.environ.copy()
     env['OPENCASA_CONTEXT'] = ctx
     env['OPENCASA_APP_PORT'] = str(effective_port)
+    env['OPENCASA_APP_DIR'] = app['path']
     if _APP_USER_HOME:
         env['HOME'] = _APP_USER_HOME
+
+    app_cwd = _APP_USER_HOME or app['path']
 
     try:
         proc = subprocess.Popen(
             ['python3', ep],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-            env=env, cwd=app['path'],
+            env=env, cwd=app_cwd,
             preexec_fn=_app_preexec,
         )
         pid = proc.pid
