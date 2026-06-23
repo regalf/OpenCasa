@@ -8,5 +8,6 @@
   "port": 18998,
   "autostart": false,
   "has_widget": false,
+  "open_in": "tab",
   "permissions": []
 }

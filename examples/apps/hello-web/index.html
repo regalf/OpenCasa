@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Hello Web</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<h1>Hello Web</h1>
+<p class="dim">This app runs in its own tab via iframe.</p>
+
+<div class="card">
+  <div class="lbl">Counter (server-side)</div>
+  <div class="val" id="counter">0</div>
+  <button class="btn" onclick="inc()">+1</button>
+</div>
+
+<div class="card">
+  <div class="lbl">Type a message</div>
+  <div class="row">
+    <input id="msgInput" placeholder="write something..." />
+    <button class="btn" onclick="sendMsg()">Send</button>
+  </div>
+  <div id="msg"></div>
+</div>
+
+<div class="card">
+  <div class="lbl">Server info</div>
+  <div id="info"></div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
