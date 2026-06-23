@@ -275,6 +275,8 @@ show_creds() {
   fi
   printf "\n  Or run the daemon directly to see credentials:\n"
   printf "    ${BOLD}python3 /usr/local/webui/webui.py -c /etc/opencasa.json -d /usr/local/webui${NC}\n"
+  printf "\n  After first boot, check the log file:\n"
+  printf "    ${BOLD}tail /var/log/webui.log${NC}\n"
   printf "\n  Save the master key — if lost, the database is unrecoverable!\n"
   printf "${CYAN}========================================${NC}\n"
 }
