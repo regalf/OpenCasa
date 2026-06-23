@@ -1557,4 +1557,5 @@ window.deleteUser = deleteUser;
 window.checkUser = checkUser;
 window.verifyRootChange = verifyRootChange;
 window.recoverySetPassword = recoverySetPassword;
+window.changeInterface = changeInterface;
 })();
