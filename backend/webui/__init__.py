@@ -8,6 +8,7 @@ import argparse
 import base64
 import json
 import logging
+import platform
 import time
 import mimetypes
 import os
@@ -815,13 +816,15 @@ def main():
     host = config["server"]["host"]
     port = args.port or config["server"]["port"]
 
+    _os = platform.system().lower() or "unknown"
+    _arch = platform.machine() or "?"
     print(r"""
    █████   ██████   ███████  ██   ██   █████    █████    █████    █████
   ██   ██  ██   ██  ██       ███  ██  ██       ██   ██  ██       ██   ██
   ██   ██  ██████   ██████   ████ ██  ██       ███████   █████   ███████
   ██   ██  ██       ██       ██ ████  ██       ██   ██       ██  ██   ██
-   █████   ██       ███████  ██  ███   █████   ██   ██   █████   ██   ██
-  OpenCasa v1.0 — Server Manager for OpenBSD/macppc""")
+   █████   ██       ███████  ██  ███   █████   ██   ██   █████   ██   ██""" + f"""
+  OpenCasa v1.0 — Server Manager for {_os}/{_arch}""")
 
     server = ThreadedHTTPServer((host, port), OpenCasaHandler)
     server.socket.settimeout(1.0)
