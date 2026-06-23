@@ -10,6 +10,9 @@
 
 set -u
 
+# Redirect stdin to terminal so 'read' works with curl | sh
+exec < /dev/tty 2>/dev/null || true
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -87,8 +90,17 @@ fetch_source() {
 
   printf "\n${CYAN}Downloading OpenCasa from GitHub...${NC}\n"
   _tmp=$(mktemp -d /tmp/opencasa-XXXXXX) || exit 1
-  _tar="${REPO}/archive/refs/heads/main.tar.gz"
 
+  if command -v git >/dev/null 2>&1; then
+    git clone --depth 1 "${REPO}.git" "$_tmp/repo" 2>/dev/null && {
+      SRC_DIR="$_tmp/repo"
+      printf "  ${GREEN}✓${NC} Cloned from GitHub\n"
+      return 0
+    }
+    printf "  ${YELLOW}git clone failed, trying archive...${NC}\n"
+  fi
+
+  _tar="${REPO}/archive/refs/heads/main.tar.gz"
   if command -v ftp >/dev/null 2>&1; then
     ftp -o - "$_tar" 2>/dev/null | tar xzf - -C "$_tmp" 2>/dev/null || {
       printf "${RED}Download failed.${NC}\n"; rm -rf "$_tmp"; exit 1
@@ -102,8 +114,8 @@ fetch_source() {
       printf "${RED}Download failed.${NC}\n"; rm -rf "$_tmp"; exit 1
     }
   else
-    printf "${RED}No download tool found (ftp/curl/wget).${NC}\n"
-    printf "Install one and retry.\n"
+    printf "${RED}No download tool found (git/ftp/curl/wget).${NC}\n"
+    printf "Clone manually: git clone ${REPO}.git && cd OpenCasa && doas sh scripts/install.sh\n"
     rm -rf "$_tmp"
     exit 1
   fi
