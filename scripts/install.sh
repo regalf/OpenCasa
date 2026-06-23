@@ -262,7 +262,7 @@ show_creds() {
   printf "${YELLOW}"
   printf "  FIRST START (generates root password + master key):\n"
   printf "${NC}\n"
-  printf "    ${BOLD}python3 /usr/local/webui/webui.py -c /etc/opencasa.json -d /usr/local/webui${NC}\n"
+  printf "    ${BOLD}doas python3 /usr/local/webui/webui.py -c /etc/opencasa.json -d /usr/local/webui${NC}   (OpenBSD)\n    ${BOLD}sudo python3 /usr/local/webui/webui.py -c /etc/opencasa.json -d /usr/local/webui${NC}   (Linux)\n"
   printf "\n  Save the master key shown — if lost, the database is lost!\n"
   printf "\n${YELLOW}  Then stop it (Ctrl+C) and start the service:\n"
   printf "${NC}\n"
