@@ -1044,7 +1044,7 @@ function render() {
     return;
   }
 
-  const webApps = state.apps.filter(a => a.type === 'web');
+  const webApps = state.apps.filter(a => a.type === 'web' && a.open_in !== 'tab');
   const appTabId = state.view === 'app' ? state.appViewId : null;
   app.innerHTML = `
     <button class="hamburger" onclick="toggleSidebar()">☰</button>
