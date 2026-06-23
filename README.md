@@ -76,7 +76,7 @@ rcctl enable webui      # OpenBSD
 rcctl start webui
 ```
 
-Or use `doas make install`.
+Or use the installer script: `doas sh scripts/install.sh` (interactive TUI).
 
 ## Configuration
 

@@ -1,26 +1,17 @@
 {
   "server": {
     "host": "0.0.0.0",
-    "port": 80,
-    "tls": false,
-    "cert_file": "",
-    "key_file": ""
+    "port": 80
   },
   "auth": {
     "enabled": true,
     "root_user": "root",
     "root_password": "admin",
-    "jwt_secret": "cambiami-con-32-byte-da-openssl-rand",
+    "jwt_secret": "JWT_SECRET_PLACEHOLDER",
     "session_ttl": "24h"
   },
   "filesystem": {
-    "allowed_prefixes": [
-      "/home",
-      "/var/www",
-      "/mnt",
-      "/tmp",
-      "/opt"
-    ],
+    "allowed_prefixes": ["/home", "/var/www", "/mnt", "/tmp", "/opt"],
     "max_upload_size": 100
   },
   "log": {
@@ -39,7 +30,6 @@
   },
   "apps_dir": "/usr/local/webui/apps",
   "app_user": "opencasa",
-  "app_password": "123456",
   "apps": {
     "max_processes": 10
   },
