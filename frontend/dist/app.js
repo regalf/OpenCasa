@@ -242,6 +242,8 @@ async function fetchAll() {
     if (st && st.filesystems) state.storage = st;
     if (a && a.apps) {
       state.apps = a.apps;
+      state.portPool = a.port_pool || [];
+      state.usedPorts = a.used_ports || [];
       state.appUserReady = a.app_user_ready !== false;
       loadWidgetPrefs();
       loadDashboardPrefs();
@@ -544,6 +546,13 @@ async function saveAppDetail() {
   if (d.has_widget) {
     const widgetEn = document.getElementById('chk-widget').checked;
     await setWidgetEnabled(d.id, widgetEn);
+  }
+  const portSel = document.getElementById('app-port-select');
+  if (portSel) {
+    const port = parseInt(portSel.value);
+    if (port !== d.port) {
+      await api('POST', '/apps/' + encodeURIComponent(d.id) + '/set-port', {port: port});
+    }
   }
   closeAppDetail();
 }
@@ -1376,7 +1385,14 @@ function renderAppDetail(d) {
         ${d.description ? `<p>${escapeHtml(d.description)}</p>` : ''}
         <div class="detail-section">
           <strong>${t('apps.type')}:</strong> ${d.type}
-          ${d.type === 'web' && d.port ? `<span style="margin-left:1rem;color:#64748b">port ${d.port}</span>` : ''}
+          ${d.type === 'web' ? `
+            <span style="margin-left:1rem;color:#64748b">port</span>
+            <select id="app-port-select" style="background:#1e293b;color:#f1f5f9;border:1px solid #334155;border-radius:4px;font-size:.85rem;padding:.15rem .3rem;margin-left:.3rem">
+              ${(state.portPool || []).map(p => `
+                <option value="${p}" ${(d.port == p) ? 'selected' : ''} ${(state.usedPorts || []).includes(p) && d.port != p ? 'disabled' : ''}>${p}${(state.usedPorts || []).includes(p) && d.port != p ? ' (in use)' : ''}</option>
+              `).join('')}
+            </select>
+          ` : ''}
         </div>
         ${d.permissions && d.permissions.length ? `
           <div class="detail-section">

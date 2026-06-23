@@ -39,7 +39,7 @@ DEFAULT_CONFIG = {
     "apps_autostart": True,
     "app_user": "opencasa",
     "app_password": "123456",
-    "apps": {"max_processes": 10, "ports": {}},
+    "apps": {"max_processes": 10, "ports": {}, "port_pool": [19000,19001,19002,19003,19004,19005,19006,19007,19008,19009]},
 }
 
 import copy
@@ -599,6 +599,13 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
                         return self._send_error(404, "app not found")
                     confirm_app(app_id, app_obj["permissions"])
                     return self._send_json({"success": True})
+                if action == "set-port":
+                    data = self._json_body()
+                    if not data or "port" not in data:
+                        return self._send_error(400, "port required")
+                    from .appmanager import set_app_port
+                    r = set_app_port(app_id, int(data["port"]))
+                    return self._send_json(r)
 
         if path == "/api/v1/notify":
             from .notifications import push_notification

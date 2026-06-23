@@ -106,6 +106,10 @@
   "apps.user_missing_title": "Utente app non trovato",
   "apps.user_missing_desc": "L'utente di sistema 'opencasa' è necessario per eseguire le app in sandbox. Crealo manualmente: doas useradd -m opencasa && doas passwd opencasa, poi riavvia OpenCasa.",
 
+  "apps.port": "Porta",
+  "apps.port_pool_exhausted": "Pool di porte esaurito — nessuna porta disponibile. Configura un pool piu' grande nelle impostazioni.",
+  "apps.set_port": "Imposta porta",
+
   "cp.title": "Pannello di Controllo",
   "cp.create_user": "Crea Utente",
   "cp.add": "Aggiungi",

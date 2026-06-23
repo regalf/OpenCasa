@@ -25,6 +25,7 @@ _cache = []
 _cache_lock = threading.Lock()
 _cache_ts = 0.0
 _running = {}
+_assigned_ports = {}  # app_id -> port (in-memory auto-assignments)
 _logs = {}
 _widget_cache = {}
 _widget_lock = threading.Lock()
@@ -184,7 +185,13 @@ def list_apps():
     scan_all()
     with _cache_lock:
         apps = [dict(a) for a in _cache]
-        return {"apps": apps, "app_user_ready": app_user_ready()}
+        used = [p for p in _pool() if any(a.get('port') == p and a['status'] == 'running' for a in apps)]
+        return {
+            "apps": apps,
+            "app_user_ready": app_user_ready(),
+            "port_pool": _pool(),
+            "used_ports": used,
+        }
 
 
 def icon_path(app_id):
@@ -341,6 +348,24 @@ def _count_running():
     return alive
 
 
+def _pool():
+    """Return the configured port pool list."""
+    return config.get('apps', {}).get('port_pool', [])
+
+
+def _pool_used_ports(exclude_app_id=None):
+    """Return set of ports from pool currently used by running apps."""
+    pool = set(_pool())
+    used = set()
+    with _cache_lock:
+        for pid, info in _running.items():
+            if _alive(pid) and info.get('app_id') != exclude_app_id:
+                p = info.get('port')
+                if p and p in pool:
+                    used.add(p)
+    return used
+
+
 def _port_available(port):
     """Check if a TCP port is available on 127.0.0.1."""
     try:
@@ -364,19 +389,21 @@ def _port_in_use_by_app(port, exclude=None):
     return None
 
 
-def _find_free_port(start=19000, end=19999):
-    """Find a free TCP port in range [start, end]."""
-    for port in range(start, end + 1):
-        if _port_available(port):
-            return port
-    return None
-
-
 def _resolve_port(app_id, manifest_port):
-    """Resolve effective port: config override → manifest → error."""
+    """Resolve effective port: config override → previously assigned → pool → manifest."""
     overrides = config.get('apps', {}).get('ports', {})
     if app_id in overrides:
         return int(overrides[app_id])
+    if app_id in _assigned_ports:
+        p = _assigned_ports[app_id]
+        if not _port_in_use_by_app(p, exclude=app_id) and _port_available(p):
+            return p
+    pool = _pool()
+    used = _pool_used_ports()
+    for p in pool:
+        if p not in used and _port_available(p):
+            _assigned_ports[app_id] = p
+            return p
     if manifest_port:
         return int(manifest_port)
     return None
@@ -393,19 +420,14 @@ def start_web_app(app_id):
         return {'error': f'{app["entry"]} not found'}
     effective_port = _resolve_port(app_id, app.get('port'))
     if not effective_port:
-        return {'error': 'no port configured in manifest or config apps.ports'}
+        return {'error': 'port pool exhausted — no free ports available'}
 
-    # Check port conflict with other running apps
     conflict = _port_in_use_by_app(effective_port, exclude=app_id)
     if conflict:
         return {'error': f'port {effective_port} already in use by app "{conflict}"'}
 
-    # If the port is not available, find a free one
     if not _port_available(effective_port):
-        free_port = _find_free_port()
-        if free_port is None:
-            return {'error': f'port {effective_port} in use and no free port found in 19000-19999'}
-        effective_port = free_port
+        return {'error': f'port {effective_port} in use by another process'}
 
     if not app_user_ready():
         return {'error': 'app_user_missing', 'app_user': APP_USER}
@@ -477,6 +499,22 @@ def stop_web_app(app_id):
         app['status'] = 'stopped'
         app['pid'] = 0
     return {'success': True}
+
+
+def set_app_port(app_id, port):
+    """Persist a port override for an app. Restart if running."""
+    pool = _pool()
+    if pool and port not in pool:
+        return {'error': f'port {port} not in pool: {pool}'}
+    config.setdefault('apps', {}).setdefault('ports', {})[app_id] = port
+    from . import save_config
+    save_config()
+    app = get_app(app_id)
+    if app and app['status'] == 'running':
+        stop_web_app(app_id)
+        r = start_web_app(app_id)
+        return r
+    return {'success': True, 'port': port}
 
 
 def uninstall_app(app_id):
