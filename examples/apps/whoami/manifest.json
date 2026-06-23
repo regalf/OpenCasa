@@ -1,0 +1,10 @@
+{
+  "name": "Whoami",
+  "version": "1.0.0",
+  "type": "tool",
+  "author": "OpenCasa",
+  "description": "Verifica sotto quale utente vengono eseguite le app (whoami)",
+  "entry": "app.py",
+  "permissions": [],
+  "has_widget": false
+}
