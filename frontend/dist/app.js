@@ -613,9 +613,9 @@ async function changeInterface(iface) {
   state.selectedInterface = iface;
   state._prevNet = null;
   try {
-    await api('POST', '/system/network-interface', {interface: iface});
-    fetchStats();
-  } catch(e) {}
+    const r = await api('POST', '/system/network-interface', {interface: iface});
+    if (r) fetchStats();
+  } catch(e) { console.error('iface save failed', e); }
 }
 
 async function verifyRootChange() {
