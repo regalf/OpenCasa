@@ -1674,4 +1674,5 @@ window.recoverySetPassword = recoverySetPassword;
 window.changeInterface = changeInterface;
 window.installApp = installApp;
 window.goHome = goHome;
+window.loadFiles = loadFiles;
 })();
