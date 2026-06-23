@@ -24,9 +24,13 @@ CONFIG_PATH="${3:-/etc/opencasa.json}"
 APP_USER="opencasa"
 
 prompt_yes() {
-  printf "%s [Y/n] " "$1" >&2
   _py_ans="y"
-  read _py_ans < /dev/tty 2>/dev/null || true
+  printf "%s [Y/n] " "$1" >&2
+  if [ -t 0 ]; then
+    read _py_ans
+  else
+    read _py_ans < /dev/tty 2>/dev/null || true
+  fi
   case "$_py_ans" in
     n|N|no|No) return 1 ;;
     *) return 0 ;;
