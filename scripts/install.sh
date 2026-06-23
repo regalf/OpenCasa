@@ -236,19 +236,23 @@ check_python() {
 
 setup_app_user() {
   printf "\n${BOLD}App user (${APP_USER})...${NC}\n"
-  if id "$APP_USER" >/dev/null 2>&1; then
-    printf "  ${GREEN}✓${NC} User %s exists\n" "$APP_USER"
-    return
-  fi
-  printf "  ${YELLOW}User %s not found.${NC}\n" "$APP_USER"
-  if prompt_yes "Create ${APP_USER} user?"; then
-    if [ "$OS" = "openbsd" ]; then
-      useradd -m "$APP_USER" && printf "  ${GREEN}✓${NC} Created\n" || printf "  ${RED}✗${NC} Failed\n"
+  if ! id "$APP_USER" >/dev/null 2>&1; then
+    printf "  ${YELLOW}User %s not found.${NC}\n" "$APP_USER"
+    if prompt_yes "Create ${APP_USER} user?"; then
+      if [ "$OS" = "openbsd" ]; then
+        useradd -m "$APP_USER" || { printf "  ${RED}✗${NC} Failed\n"; return; }
+      else
+        useradd -m -s /usr/sbin/nologin "$APP_USER" 2>/dev/null || useradd -m "$APP_USER" || { printf "  ${RED}✗${NC} Failed\n"; return; }
+      fi
+      printf "  ${GREEN}✓${NC} Created\n"
     else
-      useradd -m -s /usr/sbin/nologin "$APP_USER" 2>/dev/null || useradd -m "$APP_USER" && printf "  ${GREEN}✓${NC} Created\n" || printf "  ${RED}✗${NC} Failed\n"
+      printf "  ${YELLOW}Skipped. Create manually: useradd -m %s${NC}\n" "$APP_USER"
+      return
     fi
-  else
-    printf "  ${YELLOW}Skipped. Create manually: useradd -m %s${NC}\n" "$APP_USER"
+  fi
+  printf "  ${GREEN}✓${NC} User %s exists\n" "$APP_USER"
+  if prompt_yes "Set a password for ${APP_USER}?"; then
+    passwd "$APP_USER"
   fi
 }
 
@@ -256,28 +260,17 @@ show_creds() {
   printf "\n${CYAN}========================================${NC}\n"
   printf "  ${BOLD}OpenCasa is ready!${NC}\n"
   printf "${YELLOW}"
-  printf "  IMPORTANT: First boot generates a random root password\n"
-  printf "  and a master encryption key. These are printed to the\n"
-  printf "  console ONLY ONCE when the service starts for the first\n"
-  printf "  time. If you run via curl | sh, you will NOT see them.\n"
+  printf "  FIRST START (generates root password + master key):\n"
   printf "${NC}\n"
-  printf "  Start the service now to generate credentials:\n"
+  printf "    ${BOLD}python3 /usr/local/webui/webui.py -c /etc/opencasa.json -d /usr/local/webui${NC}\n"
+  printf "\n  Save the master key shown — if lost, the database is lost!\n"
+  printf "\n${YELLOW}  Then stop it (Ctrl+C) and start the service:\n"
+  printf "${NC}\n"
   if [ "$OS" = "openbsd" ]; then
     printf "    ${BOLD}rcctl start webui${NC}\n"
   else
     printf "    ${BOLD}systemctl start webui${NC}\n"
   fi
-  printf "\n  Watch the output (first start only):\n"
-  if [ "$OS" = "openbsd" ]; then
-    printf "    ${BOLD}rcctl start webui 2>&1${NC}\n"
-  else
-    printf "    ${BOLD}journalctl -u webui -f --no-tail${NC}\n"
-  fi
-  printf "\n  Or run the daemon directly to see credentials:\n"
-  printf "    ${BOLD}python3 /usr/local/webui/webui.py -c /etc/opencasa.json -d /usr/local/webui${NC}\n"
-  printf "\n  After first boot, check the log file:\n"
-  printf "    ${BOLD}tail /var/log/webui.log${NC}\n"
-  printf "\n  Save the master key — if lost, the database is unrecoverable!\n"
   printf "${CYAN}========================================${NC}\n"
 }
 
