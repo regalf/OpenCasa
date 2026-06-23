@@ -53,8 +53,8 @@ Platform detection is automatic via `system.platform: "auto"` in config. Overrid
 
 ```sh
 # One-liner (choose your platform):
-curl -sL https://github.com/regalf/OpenCasa/raw/main/scripts/install.sh | doas sh   # OpenBSD
-curl -sL https://github.com/regalf/OpenCasa/raw/main/scripts/install.sh | sudo sh   # Linux
+curl -s https://raw.githubusercontent.com/regalf/OpenCasa/main/scripts/install.sh | doas sh   # OpenBSD
+curl -s https://raw.githubusercontent.com/regalf/OpenCasa/main/scripts/install.sh | sudo sh   # Linux
 ```
 
 The script auto-detects the OS, downloads the latest source, and runs an interactive TUI installer. Or if you have the repo locally:

@@ -5,7 +5,7 @@
 #
 # Usage:
 #   Local:  doas sh scripts/install.sh
-#   Remote: curl -sL https://github.com/regalf/OpenCasa/raw/main/scripts/install.sh | doas sh
+#   Remote: curl -s https://raw.githubusercontent.com/regalf/OpenCasa/main/scripts/install.sh | doas sh
 #
 
 set -u
@@ -64,7 +64,7 @@ ensure_root() {
       fi
     fi
     printf "${YELLOW}Re-run with: doas sh %s${NC}\n" "${0:-scripts/install.sh}"
-    printf "${YELLOW}Or pipe: curl -sL %s/raw/main/scripts/install.sh | doas sh${NC}\n" "$REPO"
+    printf "${YELLOW}Or pipe: curl -s https://raw.githubusercontent.com/regalf/OpenCasa/main/scripts/install.sh | doas sh${NC}\n"
     exit 1
   fi
 }
