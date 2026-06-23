@@ -274,14 +274,14 @@ setup_app_user() {
         useradd -m -s /usr/sbin/nologin "$APP_USER" 2>/dev/null || useradd -m "$APP_USER" || { printf "  ${RED}✗${NC} Failed\n"; return; }
       fi
       printf "  ${GREEN}✓${NC} Created\n"
+      if prompt_yes "Set a password for ${APP_USER}?"; then
+        passwd "$APP_USER"
+      fi
     else
       printf "  ${YELLOW}Skipped. Create manually: useradd -m %s${NC}\n" "$APP_USER"
-      return
     fi
-  fi
-  printf "  ${GREEN}✓${NC} User %s exists\n" "$APP_USER"
-  if prompt_yes "Set a password for ${APP_USER}?"; then
-    passwd "$APP_USER"
+  else
+    printf "  ${GREEN}✓${NC} User %s already exists — skipping password setup\n" "$APP_USER"
   fi
 }
 
