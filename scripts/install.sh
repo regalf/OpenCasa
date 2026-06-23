@@ -24,10 +24,10 @@ CONFIG_PATH="${3:-/etc/opencasa.json}"
 APP_USER="opencasa"
 
 prompt_yes() {
-  printf "%s [Y/n] " "$1"
-  _ans="y"
-  read _ans < /dev/tty 2>/dev/null || true
-  case "$_ans" in
+  printf "%s [Y/n] " "$1" >&2
+  _py_ans="y"
+  read _py_ans 2>/dev/null || read _py_ans < /dev/tty 2>/dev/null || true
+  case "$_py_ans" in
     n|N|no|No) return 1 ;;
     *) return 0 ;;
   esac
@@ -202,14 +202,16 @@ install_example_apps() {
 setup_config() {
   if [ -f "$CONFIG_PATH" ]; then
     printf "\n${YELLOW}Config already exists at %s${NC}\n" "$CONFIG_PATH"
-    if ! prompt_yes "Overwrite?"; then
+    prompt_yes "Overwrite?" || {
       printf "  ${YELLOW}Keeping existing config.${NC}\n"
       return
-    fi
+    }
   fi
   _jwt=$( (command -v openssl >/dev/null && openssl rand -hex 32) || (command -v python3 >/dev/null && python3 -c "import secrets; print(secrets.token_hex(32))") || echo "CHANGE-ME-$(date +%s)" )
-  sed "s/JWT_SECRET_PLACEHOLDER/${_jwt}/" "$SRC_DIR/opencasa.json.example" > "$CONFIG_PATH" 2>/dev/null || cp "$SRC_DIR/opencasa.json.example" "$CONFIG_PATH"
-  chmod 600 "$CONFIG_PATH"
+  _tmpcf=$(mktemp /tmp/opencasa-conf-XXXXXX) 2>/dev/null || _tmpcf="$CONFIG_PATH"
+  sed "s/JWT_SECRET_PLACEHOLDER/${_jwt}/" "$SRC_DIR/opencasa.json.example" > "$_tmpcf" 2>/dev/null || cp "$SRC_DIR/opencasa.json.example" "$_tmpcf"
+  chmod 600 "$_tmpcf"
+  [ "$_tmpcf" != "$CONFIG_PATH" ] && mv "$_tmpcf" "$CONFIG_PATH"
   printf "  ${GREEN}✓${NC} %s created\n" "$CONFIG_PATH"
 }
 
