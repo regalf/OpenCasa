@@ -164,7 +164,7 @@ Apps declare required permissions in their manifest. Before first run, the user 
 
 ### App User
 
-Apps are designed to run as an unprivileged system user (`app_user`, default `opencasa`) for sandboxing. On **Linux**, the backend drops privileges via `os.setuid()`/`os.setgid()`. On **OpenBSD**, privilege dropping is not fully supported — apps currently run as root. Permission enforcement (confirmation dialog, restricted file access) still applies regardless of the running user.
+Apps are designed to run as an unprivileged system user (`app_user`, default `opencasa`) for sandboxing. The backend drops privileges via `os.setuid()`/`os.setgid()` on Linux, and via `pwd.getpwnam()` + `os.setgid()`/`os.setuid()` on OpenBSD.
 
 Create the app user manually:
 ```sh
@@ -176,7 +176,6 @@ If the user is missing, the Apps tab shows a warning banner and app execution is
 
 ## Limitations
 
-- **OpenBSD app execution**: apps run as root (privilege dropping via `os.setuid()` is not reliable on all OpenBSD versions/configurations). Permission confirmations are still enforced.
 - **No HTTPS in daemon**: terminate behind nginx/haproxy for TLS.
 - **No package-lock.json**: frontend dependency versions are not locked (Svelte/Vite build only needed for development, not deployment).
 - **Config save is not fully atomic**: uses `os.replace()` which is atomic on most filesystems but not guaranteed on all.
