@@ -26,7 +26,7 @@ APP_USER="opencasa"
 prompt_yes() {
   printf "%s [Y/n] " "$1" >&2
   _py_ans="y"
-  read _py_ans 2>/dev/null || read _py_ans < /dev/tty 2>/dev/null || true
+  read _py_ans < /dev/tty 2>/dev/null || true
   case "$_py_ans" in
     n|N|no|No) return 1 ;;
     *) return 0 ;;
