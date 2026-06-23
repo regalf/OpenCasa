@@ -52,6 +52,21 @@ Platform detection is automatic via `system.platform: "auto"` in config. Overrid
 ## Quick Install
 
 ```sh
+# One-liner (choose your platform):
+curl -sL https://github.com/regalf/OpenCasa/raw/main/scripts/install.sh | doas sh   # OpenBSD
+curl -sL https://github.com/regalf/OpenCasa/raw/main/scripts/install.sh | sudo sh   # Linux
+```
+
+The script auto-detects the OS, downloads the latest source, and runs an interactive TUI installer. Or if you have the repo locally:
+
+```sh
+doas sh scripts/install.sh     # OpenBSD
+sudo sh scripts/install.sh     # Linux
+```
+
+Manual steps (if you prefer not to use the installer):
+
+```sh
 # As root on the target machine:
 mkdir -p /usr/local/webui/apps
 cp backend/webui.py /usr/local/webui/
@@ -61,22 +76,20 @@ cp frontend/dist/style.css /usr/local/webui/
 cp frontend/dist/app.js /usr/local/webui/
 cp frontend/dist/favicon.svg /usr/local/webui/
 cp -r frontend/dist/locales /usr/local/webui/locales
-cp scripts/webui /etc/rc.d/webui      # OpenBSD
+cp scripts/webui /etc/rc.d/webui           # OpenBSD
 # or: cp scripts/webui.service /etc/systemd/system/  # Linux
 chmod +x /etc/rc.d/webui
 cp opencasa.json.example /etc/opencasa.json
 
 # On first boot, OpenCasa auto-generates:
 #   - Master key for database encryption (displayed on console)
-#   - JWT secret (replaces the placeholder)
-#   - Random 16-character root password (displayed on console, replaces the default "admin")
+#   - JWT seed instead of the default "admin")
 
 # Enable and start
-rcctl enable webui      # OpenBSD
+rcctl enable webui          # OpenBSD
 rcctl start webui
+systemctl enable --now webui  # Linux
 ```
-
-Or use the installer script: `doas sh scripts/install.sh` (interactive TUI).
 
 ## Configuration
 
