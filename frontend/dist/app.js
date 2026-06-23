@@ -315,6 +315,17 @@ function goUp() {
   loadFiles(parent);
 }
 
+async function togglePin(path) {
+  try {
+    await api('POST', '/files/toggle-pin', {path: path});
+    await loadPrefixes();
+  } catch(e) { state.error = e.message; render(); }
+}
+
+function togglePinFromBrowse() {
+  togglePin(state.filePath);
+}
+
 function goHome() {
   state.fmView = 'home';
   state.files = [];
@@ -1347,15 +1358,17 @@ function renderFileManager() {
       ${state.filesLoading ? `<div class="loading-spinner"></div>` : `
         <h1 style="margin-bottom:1rem">${t('files.h1')}</h1>
         <div class="prefix-grid">
-          ${(state.fmPrefixes.length === 0 ? (state.info && state.info.app_user_home ? [state.info.app_user_home] : []) : state.fmPrefixes).map(p => `
-            <div class="prefix-card" onclick="loadFiles('${escapeHtml(p)}')">
-              <div class="prefix-icon">📁</div>
-              <div class="prefix-label">${escapeHtml(p)}</div>
-              <button class="btn btn-primary" onclick="event.stopPropagation();loadFiles('${escapeHtml(p)}')">${t('files.browse')}</button>
-            </div>
-          `).join('')}
-        </div>
-      `}
+          ${state.fmPrefixes.map(p => `
+            <div class="prefix-card" onclick="loadFiles('${escapeHtml(p.path)}')">
+              <div class="prefix-icon">${p.is_home ? '🏠' : '📁'}</div>
+              <div class="prefix-label">${escapeHtml(p.label)}</div>
+              <div class="prefix-path">${escapeHtml(p.path)}</div>
+              <div style="display:flex;gap:.3rem;margin-top:.3rem">
+                <button class="btn btn-primary" onclick="event.stopPropagation();loadFiles('${escapeHtml(p.path)}')">${t('files.browse')}</button>
+                ${!p.is_home ? `<button class="btn" onclick="event.stopPropagation();togglePin('${escapeHtml(p.path)}')">${p.is_pinned ? t('files.unpin') : t('files.pin')}</button>` : ''}
+              </div>
+            </div>`).join('')}
+        </div>`}
       ${state.error ? `<p style="color:#f87171;margin-top:1rem">${escapeHtml(state.error)}</p>` : ''}
     `;
   }
@@ -1370,6 +1383,7 @@ function renderFileManager() {
       <button onclick="goUp()">⬆</button>
       <button onclick="goHome()" title="${t('files.home')}">🏠</button>
       <span class="fm-path">${escapeHtml(state.filePath)}</span>
+      <button onclick="togglePinFromBrowse()" title="${t('files.pin')}">📌</button>
       <button onclick="uploadFile()">${t('files.upload')}</button>
       <button onclick="createFile()">${t('files.new_file')}</button>
       <button onclick="createDir()">${t('files.new_dir')}</button>
@@ -1675,4 +1689,6 @@ window.changeInterface = changeInterface;
 window.installApp = installApp;
 window.goHome = goHome;
 window.loadFiles = loadFiles;
+window.togglePin = togglePin;
+window.togglePinFromBrowse = togglePinFromBrowse;
 })();

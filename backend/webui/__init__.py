@@ -324,6 +324,10 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
             from .filemanager import handle_list_prefixes
             return handle_list_prefixes(self)
 
+        if path == "/api/v1/files/toggle-pin":
+            from .filemanager import handle_toggle_pin
+            return handle_toggle_pin(self)
+
         if path == "/api/v1/storage":
             from .system import get_filesystems
             return self._send_json({"filesystems": get_filesystems()})
@@ -850,6 +854,9 @@ def main():
     from .notifications import load_notifications
     appmanager_init()
     load_notifications()
+
+    from .filemanager import init_user_folders
+    init_user_folders()
 
     host = config["server"]["host"]
     port = args.port or config["server"]["port"]

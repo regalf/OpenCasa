@@ -79,6 +79,8 @@
   "files.h1": "File Manager",
   "files.browse": "Browse",
   "files.home": "Home",
+  "files.pin": "Pin",
+  "files.unpin": "Unpin",
 
   "apps.title": "Apps",
   "apps.empty_list": "No apps installed.\nCreate a folder with a manifest.json in DATA_DIR/apps/",

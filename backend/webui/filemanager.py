@@ -209,23 +209,100 @@ def handle_list_disks(handler):
     return handler._send_json({"disks": disks})
 
 
-def handle_list_prefixes(handler):
-    """Return accessible root prefixes for the current user."""
-    prefixes = []
-    if handler and getattr(handler, "_is_root", False):
-        prefixes = config.get("filesystem", {}).get("allowed_prefixes", [])
-    else:
-        app_user = config.get('app_user', 'opencasa')
+def _get_app_user_home():
+    """Return the real path of the app_user home, or None."""
+    app_user = config.get('app_user', 'opencasa')
+    try:
+        import pwd
+        return os.path.realpath(pwd.getpwnam(app_user).pw_dir)
+    except (KeyError, ImportError, OSError):
+        return None
+
+
+def init_user_folders():
+    """Create standard user folders in the app_user home directory on first run."""
+    home = _get_app_user_home()
+    if not home:
+        return
+    folders = ['Documents', 'Music', 'Video', 'Pictures', 'DATA']
+    for name in folders:
+        p = os.path.join(home, name)
         try:
-            import pwd
-            home = os.path.realpath(pwd.getpwnam(app_user).pw_dir)
-            if os.path.isdir(home):
-                prefixes = [home]
-        except (KeyError, ImportError, OSError):
+            os.makedirs(p, exist_ok=True)
+        except OSError:
             pass
-    resolved = []
-    for p in prefixes:
+
+
+def handle_list_prefixes(handler):
+    """Return accessible locations: home + pinned folders (per-user from DB)."""
+    is_root = handler and getattr(handler, "_is_root", False)
+    home = _get_app_user_home()
+    folders = []
+    seen = set()
+    if home and os.path.isdir(home):
+        folders.append({"path": home, "label": "🏠 Home", "is_home": True, "is_pinned": False})
+        seen.add(home)
+    if is_root:
+        for p in config.get("filesystem", {}).get("allowed_prefixes", []):
+            rp = os.path.realpath(p)
+            if rp not in seen and os.path.isdir(rp):
+                folders.append({"path": rp, "label": os.path.basename(rp) or rp, "is_home": False, "is_pinned": False})
+                seen.add(rp)
+    username = handler._current_user if handler else None
+    pinned = _get_pinned_folders(username)
+    for p in pinned:
         rp = os.path.realpath(p)
-        if os.path.isdir(rp):
-            resolved.append(rp)
-    return handler._send_json({"prefixes": resolved})
+        if rp not in seen and os.path.isdir(rp):
+            basename = os.path.basename(rp) or rp
+            folders.append({"path": rp, "label": basename, "is_home": False, "is_pinned": True})
+            seen.add(rp)
+    return handler._send_json({"prefixes": folders})
+
+
+def _get_pinned_folders(username=None):
+    """Get pinned folders from DB for a user."""
+    if not username:
+        return []
+    from . import database as db
+    key = f"_pinned:{username}"
+    raw = db.get(key)
+    if raw:
+        try:
+            return json.loads(raw)
+        except (json.JSONDecodeError, TypeError):
+            pass
+    return []
+
+
+def _set_pinned_folders(username, folders):
+    """Save pinned folders to DB for a user."""
+    if not username:
+        return
+    from . import database as db
+    key = f"_pinned:{username}"
+    if folders:
+        db.set(key, json.dumps(folders))
+    else:
+        db.delete(key)
+
+
+def handle_toggle_pin(handler):
+    """Add or remove a path from user's pinned folders (stored in DB)."""
+    data = handler._json_body()
+    if not data or "path" not in data:
+        return handler._send_error(400, "path required")
+    path = os.path.realpath(data["path"])
+    if not handler._is_root and not _check_path(path, handler):
+        return handler._send_error(403, "access denied")
+    username = handler._current_user
+    if not username:
+        return handler._send_error(401, "not authenticated")
+    pinned = _get_pinned_folders(username)
+    if path in pinned:
+        pinned = [p for p in pinned if p != path]
+        action = "unpinned"
+    else:
+        pinned.append(path)
+        action = "pinned"
+    _set_pinned_folders(username, pinned)
+    return handler._send_json({"success": True, "action": action, "path": path})

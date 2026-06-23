@@ -79,6 +79,8 @@
   "files.h1": "File Manager",
   "files.browse": "Sfoglia",
   "files.home": "Home",
+  "files.pin": "Appunta",
+  "files.unpin": "Rimuovi",
 
   "apps.title": "App",
   "apps.empty_list": "Nessuna app installata.\nCrea una cartella con manifest.json in DATA_DIR/apps/",
