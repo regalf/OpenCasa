@@ -61,6 +61,7 @@ let state = {
   tamperStep: 1,
   tamperError: '',
   tamperLoading: false,
+  installedMsg: '',
 };
 
 async function api(method, path, body) {
@@ -687,6 +688,32 @@ async function uninstallApp(id) {
   state.appDetail = null;
   state.appOutput = null;
   loadApps();
+}
+
+function installApp() {
+  const inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = '.zip';
+  inp.onchange = async () => {
+    const file = inp.files[0];
+    if (!file) return;
+    const form = new FormData();
+    form.append('file', file);
+    try {
+      const res = await fetch('/api/v1/apps/install', {method:'POST', body:form});
+      const data = await res.json();
+      if (data.success) {
+        state.installedMsg = t('apps.installed_ok').replace('%s', data.name || data.app_id);
+      } else {
+        state.error = data.error || 'install failed';
+      }
+    } catch(e) {
+      state.error = e.message;
+    }
+    state.appDetail = null;
+    await loadApps();
+  };
+  inp.click();
 }
 
 function openApp(id, type, status, openIn) {
@@ -1342,8 +1369,13 @@ function renderFileManager() {
 
 function renderAppManager() {
   const d = state.appDetail;
+  const instMsg = state.installedMsg;
   return `
     <h1 style="margin-bottom:1rem">${t('apps.title')}</h1>
+    <div style="margin-bottom:1rem">
+      <button class="btn" onclick="installApp()">${t('apps.install_btn')}</button>
+    </div>
+    ${instMsg ? `<div style="background:#14532d;border:1px solid #22c55e;border-radius:.5rem;padding:.5rem 1rem;margin-bottom:1rem">${escapeHtml(instMsg)}</div>` : ''}
     ${!state.appUserReady ? `
       <div style="background:#451a03;border:1px solid #78350f;border-radius:.5rem;padding:.8rem 1rem;margin-bottom:1rem;color:#fb923c">
         <strong>⚠ ${t('apps.user_missing_title')}</strong>
@@ -1578,4 +1610,5 @@ window.checkUser = checkUser;
 window.verifyRootChange = verifyRootChange;
 window.recoverySetPassword = recoverySetPassword;
 window.changeInterface = changeInterface;
+window.installApp = installApp;
 })();

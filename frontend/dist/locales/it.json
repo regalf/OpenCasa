@@ -110,6 +110,9 @@
   "apps.port_pool_exhausted": "Pool di porte esaurito — nessuna porta disponibile. Configura un pool piu' grande nelle impostazioni.",
   "apps.set_port": "Imposta porta",
 
+  "apps.install_btn": "Installa App (ZIP)",
+  "apps.installed_ok": "App \"%s\" installata con successo",
+
   "cp.title": "Pannello di Controllo",
   "cp.create_user": "Crea Utente",
   "cp.add": "Aggiungi",

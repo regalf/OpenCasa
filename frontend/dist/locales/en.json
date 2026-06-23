@@ -110,6 +110,9 @@
   "apps.port_pool_exhausted": "Port pool exhausted — no free ports available. Configure a larger pool in settings.",
   "apps.set_port": "Set port",
 
+  "apps.install_btn": "Install App (ZIP)",
+  "apps.installed_ok": "App \"%s\" installed successfully",
+
   "cp.title": "Control Panel",
   "cp.create_user": "Create User",
   "cp.add": "Add",

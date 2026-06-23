@@ -3,12 +3,14 @@
 import json
 import logging
 import os
+import re
 import shutil
 import signal
 import socket
 import subprocess
 import threading
 import time
+import zipfile
 from datetime import datetime, timezone
 
 from . import config
@@ -538,6 +540,50 @@ def uninstall_app(app_id):
             _widget_cache.pop(app_id, None)
         return {'success': True}
     except OSError as e:
+        return {'error': str(e)}
+
+
+def install_app_from_zip(file_data):
+    """Extract a ZIP from raw bytes and install as an app."""
+    import tempfile
+    if not file_data:
+        return {'error': 'no zip file data received'}
+    app_dir_name = None
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            zip_path = os.path.join(tmp, "app.zip")
+            with open(zip_path, "wb") as f:
+                f.write(file_data)
+            with zipfile.ZipFile(zip_path, "r") as zf:
+                names = zf.namelist()
+                if not names:
+                    return {'error': 'empty zip'}
+                root = names[0].split("/")[0]
+                if not _safe_id(root):
+                    return {'error': f'invalid app directory name: {root}'}
+                app_dir_name = root
+                target = os.path.join(APPS_DIR, root)
+                if os.path.exists(target):
+                    return {'error': f'app "{root}" already exists'}
+                zf.extractall(APPS_DIR)
+            mf = os.path.join(target, "manifest.json")
+            if not os.path.isfile(mf):
+                shutil.rmtree(target, ignore_errors=True)
+                return {'error': 'manifest.json not found in zip'}
+            try:
+                with open(mf) as f:
+                    m = json.load(f)
+                if not m.get("name"):
+                    shutil.rmtree(target, ignore_errors=True)
+                    return {'error': 'manifest missing "name" field'}
+            except (json.JSONDecodeError, OSError) as e:
+                shutil.rmtree(target, ignore_errors=True)
+                return {'error': f'invalid manifest.json: {e}'}
+            scan_all()
+            return {'success': True, 'app_id': root, 'name': m.get("name", root)}
+    except (zipfile.BadZipFile, OSError) as e:
+        if app_dir_name:
+            shutil.rmtree(os.path.join(APPS_DIR, app_dir_name), ignore_errors=True)
         return {'error': str(e)}
 
 

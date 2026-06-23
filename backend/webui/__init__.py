@@ -9,6 +9,7 @@ import base64
 import json
 import logging
 import platform
+import re
 import time
 import mimetypes
 import os
@@ -576,6 +577,32 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
             if r.returncode == 0:
                 return self._send_json({"success": True})
             return self._send_error(500, r.stderr.strip() or "umount failed")
+
+        if path == "/api/v1/apps/install":
+            from .appmanager import install_app_from_zip
+            content_type = self.headers.get("Content-Type", "")
+            body = self._read_body()
+            file_data = body
+            if "multipart/form-data" in content_type and "boundary=" in content_type:
+                boundary = content_type.split("boundary=", 1)[1].strip()
+                for part in body.split(("--" + boundary).encode()):
+                    if not part or part.strip() in (b"--", b""):
+                        continue
+                    hdr_end = part.find(b"\r\n\r\n")
+                    if hdr_end == -1:
+                        continue
+                    hdrs = part[:hdr_end].decode("utf-8", errors="replace")
+                    data = part[hdr_end + 4:]
+                    while data.endswith(b"\r\n"):
+                        data = data[:-2]
+                    if data.endswith(b"--"):
+                        data = data[:-2]
+                    if re.search(r'filename="([^"]*)"', hdrs):
+                        file_data = data
+                        break
+            r = install_app_from_zip(file_data)
+            status = 200 if r.get("success") else 400
+            return self._send_json(r, status)
 
         if path.startswith("/api/v1/apps/"):
             rest = path[len("/api/v1/apps/"):].strip("/")
