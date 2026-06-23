@@ -195,18 +195,14 @@ setup_service() {
   if [ "$OS" = "openbsd" ]; then
     cp "$SRC_DIR/scripts/webui" /etc/rc.d/webui
     chmod 755 /etc/rc.d/webui
-    printf "  ${GREEN}✓${NC} /etc/rc.d/webui\n"
-    if prompt_yes "Enable and start webui now?"; then
-      rcctl enable webui && rcctl start webui && printf "  ${GREEN}✓${NC} Service started\n" || printf "  ${RED}✗${NC} Service start failed\n"
-    fi
+    rcctl enable webui
+    printf "  ${GREEN}✓${NC} /etc/rc.d/webui (enabled)\n"
   else
     cp "$SRC_DIR/scripts/webui.service" /etc/systemd/system/webui.service
     chmod 644 /etc/systemd/system/webui.service
     systemctl daemon-reload
-    printf "  ${GREEN}✓${NC} /etc/systemd/system/webui.service\n"
-    if prompt_yes "Enable and start webui now?"; then
-      systemctl enable --now webui && printf "  ${GREEN}✓${NC} Service started\n" || printf "  ${RED}✗${NC} Service start failed\n"
-    fi
+    systemctl enable webui
+    printf "  ${GREEN}✓${NC} /etc/systemd/system/webui.service (enabled)\n"
   fi
 }
 
@@ -257,23 +253,30 @@ setup_app_user() {
 }
 
 show_creds() {
-  if [ -f "$CONFIG_PATH" ]; then
-    _rp=$(python3 -c "
-import json
-with open('$CONFIG_PATH') as f:
-    c = json.load(f)
-print(c.get('auth',{}).get('root_user','root'))
-print(c.get('auth',{}).get('root_password','admin'))
-" 2>/dev/null)
-    _ru=$(echo "$_rp" | head -1)
-    _rpw=$(echo "$_rp" | tail -1)
-    printf "\n${CYAN}========================================${NC}\n"
-    printf "  ${BOLD}OpenCasa is ready!${NC}\n"
-    printf "  URL:      http://$(hostname)/\n"
-    printf "  User:     ${BOLD}%s${NC}\n" "$_ru"
-    printf "  Password: ${YELLOW}%s${NC}\n" "$_rpw"
-    printf "${CYAN}========================================${NC}\n"
+  printf "\n${CYAN}========================================${NC}\n"
+  printf "  ${BOLD}OpenCasa is ready!${NC}\n"
+  printf "${YELLOW}"
+  printf "  IMPORTANT: First boot generates a random root password\n"
+  printf "  and a master encryption key. These are printed to the\n"
+  printf "  console ONLY ONCE when the service starts for the first\n"
+  printf "  time. If you run via curl | sh, you will NOT see them.\n"
+  printf "${NC}\n"
+  printf "  Start the service now to generate credentials:\n"
+  if [ "$OS" = "openbsd" ]; then
+    printf "    ${BOLD}rcctl start webui${NC}\n"
+  else
+    printf "    ${BOLD}systemctl start webui${NC}\n"
   fi
+  printf "\n  Watch the output (first start only):\n"
+  if [ "$OS" = "openbsd" ]; then
+    printf "    ${BOLD}rcctl start webui 2>&1${NC}\n"
+  else
+    printf "    ${BOLD}journalctl -u webui -f --no-tail${NC}\n"
+  fi
+  printf "\n  Or run the daemon directly to see credentials:\n"
+  printf "    ${BOLD}python3 /usr/local/webui/webui.py -c /etc/opencasa.json -d /usr/local/webui${NC}\n"
+  printf "\n  Save the master key — if lost, the database is unrecoverable!\n"
+  printf "${CYAN}========================================${NC}\n"
 }
 
 # ---- main ----
