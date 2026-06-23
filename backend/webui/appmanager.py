@@ -5,6 +5,7 @@ import logging
 import os
 import shutil
 import signal
+import socket
 import subprocess
 import threading
 import time
@@ -340,6 +341,37 @@ def _count_running():
     return alive
 
 
+def _port_available(port):
+    """Check if a TCP port is available on 127.0.0.1."""
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        s.settimeout(1)
+        s.bind(('127.0.0.1', port))
+        s.close()
+        return True
+    except (OSError, OverflowError):
+        return False
+
+
+def _port_in_use_by_app(port, exclude=None):
+    """Return the app_id of a running app using this port, or None."""
+    with _cache_lock:
+        for pid, info in list(_running.items()):
+            if info.get('port') == port and _alive(pid):
+                if exclude is None or info.get('app_id') != exclude:
+                    return info.get('app_id')
+    return None
+
+
+def _find_free_port(start=19000, end=19999):
+    """Find a free TCP port in range [start, end]."""
+    for port in range(start, end + 1):
+        if _port_available(port):
+            return port
+    return None
+
+
 def _resolve_port(app_id, manifest_port):
     """Resolve effective port: config override → manifest → error."""
     overrides = config.get('apps', {}).get('ports', {})
@@ -362,6 +394,18 @@ def start_web_app(app_id):
     effective_port = _resolve_port(app_id, app.get('port'))
     if not effective_port:
         return {'error': 'no port configured in manifest or config apps.ports'}
+
+    # Check port conflict with other running apps
+    conflict = _port_in_use_by_app(effective_port, exclude=app_id)
+    if conflict:
+        return {'error': f'port {effective_port} already in use by app "{conflict}"'}
+
+    # If the port is not available, find a free one
+    if not _port_available(effective_port):
+        free_port = _find_free_port()
+        if free_port is None:
+            return {'error': f'port {effective_port} in use and no free port found in 19000-19999'}
+        effective_port = free_port
 
     if not app_user_ready():
         return {'error': 'app_user_missing', 'app_user': APP_USER}
