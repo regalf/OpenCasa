@@ -62,6 +62,8 @@ let state = {
   tamperError: '',
   tamperLoading: false,
   installedMsg: '',
+  fmPrefixes: [],
+  fmView: 'home',
 };
 
 async function api(method, path, body) {
@@ -203,7 +205,7 @@ function navigate(view) {
   closeSidebar();
   state.view = view; state.error = ''; state.appDetail = null; state.appOutput = null; state.appViewId = null;
   if (view === 'dashboard') { state._prevNet = null; fetchAll(); return; }
-  if (view === 'files' && state.files.length === 0) { loadFiles(_fileHome()); return; }
+  if (view === 'files') { if (state.fmPrefixes.length === 0) loadPrefixes(); else { state.fmView = 'home'; render(); } return; }
   if (view === 'apps') { loadApps(); return; }
   if (view === 'controlpanel') { loadUsers(); return; }
   render();
@@ -273,9 +275,25 @@ function _fileHome() {
   return (state.info && state.info.app_user_home) || '/';
 }
 
+async function loadPrefixes() {
+  state.filesLoading = true;
+  state.error = '';
+  render();
+  try {
+    const res = await api('GET', '/files/prefixes');
+    state.fmPrefixes = res.prefixes || [];
+    state.fmView = 'home';
+    state.files = [];
+    state.filePath = '';
+  } catch(e) { state.error = e.message; }
+  state.filesLoading = false;
+  render();
+}
+
 async function loadFiles(path) {
   state.filesLoading = true;
   state.error = '';
+  state.fmView = 'browse';
   render();
   try {
     const res = await api('GET', '/files?path=' + encodeURIComponent(path));
@@ -295,6 +313,14 @@ function goUp() {
   const p = state.filePath.replace(/\/$/, '');
   const parent = p.substring(0, p.lastIndexOf('/')) || '/';
   loadFiles(parent);
+}
+
+function goHome() {
+  state.fmView = 'home';
+  state.files = [];
+  state.filePath = '';
+  state.error = '';
+  render();
 }
 
 async function openFile(name) {
@@ -1310,6 +1336,29 @@ function renderDashboard() {
 
 function renderFileManager() {
   const userMissing = !state.isRoot && (!state.info || !state.info.app_user_home);
+  if (state.fmView === 'home') {
+    return `
+      ${userMissing ? `
+        <div style="background:#451a03;border:1px solid #78350f;border-radius:.5rem;padding:.8rem 1rem;margin-bottom:1rem;color:#fb923c">
+          <strong>⚠ ${t('files.user_missing_title')}</strong>
+          <p style="margin:.3rem 0 0;font-size:.85rem">${t('files.user_missing_desc')}</p>
+        </div>
+      ` : ''}
+      ${state.filesLoading ? `<div class="loading-spinner"></div>` : `
+        <h1 style="margin-bottom:1rem">${t('files.h1')}</h1>
+        <div class="prefix-grid">
+          ${(state.fmPrefixes.length === 0 ? (state.info && state.info.app_user_home ? [state.info.app_user_home] : []) : state.fmPrefixes).map(p => `
+            <div class="prefix-card" onclick="loadFiles('${escapeHtml(p)}')">
+              <div class="prefix-icon">📁</div>
+              <div class="prefix-label">${escapeHtml(p)}</div>
+              <button class="btn btn-primary" onclick="event.stopPropagation();loadFiles('${escapeHtml(p)}')">${t('files.browse')}</button>
+            </div>
+          `).join('')}
+        </div>
+      `}
+      ${state.error ? `<p style="color:#f87171;margin-top:1rem">${escapeHtml(state.error)}</p>` : ''}
+    `;
+  }
   return `
     ${userMissing ? `
       <div style="background:#451a03;border:1px solid #78350f;border-radius:.5rem;padding:.8rem 1rem;margin-bottom:1rem;color:#fb923c">
@@ -1319,6 +1368,7 @@ function renderFileManager() {
     ` : ''}
     <div class="fm-toolbar">
       <button onclick="goUp()">⬆</button>
+      <button onclick="goHome()" title="${t('files.home')}">🏠</button>
       <span class="fm-path">${escapeHtml(state.filePath)}</span>
       <button onclick="uploadFile()">${t('files.upload')}</button>
       <button onclick="createFile()">${t('files.new_file')}</button>
@@ -1623,4 +1673,5 @@ window.verifyRootChange = verifyRootChange;
 window.recoverySetPassword = recoverySetPassword;
 window.changeInterface = changeInterface;
 window.installApp = installApp;
+window.goHome = goHome;
 })();

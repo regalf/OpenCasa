@@ -269,3 +269,12 @@ body{
 .tamper-box{background:#1e293b;max-width:440px;width:90%;padding:2rem;border-radius:12px;border:2px solid #dc2626;text-align:center}
 .tamper-box h2{color:#fca5a5;margin:0 0 .8rem 0;font-size:1.2rem}
 .tamper-box p{color:#94a3b8;font-size:.85rem;line-height:1.4;margin:0}
+.prefix-grid{display:flex;flex-wrap:wrap;gap:1rem;margin-top:1rem}
+.prefix-card{
+  background:#1e293b;border:1px solid #334155;border-radius:10px;
+  padding:1.5rem;cursor:pointer;transition:background .15s,transform .15s;
+  display:flex;flex-direction:column;align-items:center;gap:.5rem;min-width:160px
+}
+.prefix-card:hover{background:#334155;transform:translateY(-2px)}
+.prefix-icon{font-size:2rem}
+.prefix-label{font-size:.85rem;color:#94a3b8;word-break:break-all;text-align:center}

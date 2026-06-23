@@ -31,7 +31,7 @@ DEFAULT_CONFIG = {
         "session_ttl": "24h",
     },
     "filesystem": {
-        "allowed_prefixes": ["/home", "/var/www", "/mnt", "/tmp", "/opt"],
+        "allowed_prefixes": ["/home/opencasa"],
         "max_upload_size": 100,
     },
     "system": {"platform": "auto", "network_interface": ""},
@@ -319,6 +319,10 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
         if path == "/api/v1/disks":
             from .filemanager import handle_list_disks
             return handle_list_disks(self)
+
+        if path == "/api/v1/files/prefixes":
+            from .filemanager import handle_list_prefixes
+            return handle_list_prefixes(self)
 
         if path == "/api/v1/storage":
             from .system import get_filesystems

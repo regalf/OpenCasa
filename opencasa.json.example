@@ -11,7 +11,7 @@
     "session_ttl": "24h"
   },
   "filesystem": {
-    "allowed_prefixes": ["/home", "/var/www", "/mnt", "/tmp", "/opt"],
+    "allowed_prefixes": ["/home/opencasa"],
     "max_upload_size": 100
   },
   "log": {

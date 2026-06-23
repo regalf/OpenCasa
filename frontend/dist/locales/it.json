@@ -76,6 +76,10 @@
   "files.user_missing_title": "Utente app non trovato",
   "files.user_missing_desc": "L'utente di sistema 'opencasa' e' necessario per l'accesso ai file. Crealo manualmente: doas useradd -m opencasa && doas passwd opencasa, poi riavvia OpenCasa.",
 
+  "files.h1": "File Manager",
+  "files.browse": "Sfoglia",
+  "files.home": "Home",
+
   "apps.title": "App",
   "apps.empty_list": "Nessuna app installata.\nCrea una cartella con manifest.json in DATA_DIR/apps/",
   "apps.author": "Autore",

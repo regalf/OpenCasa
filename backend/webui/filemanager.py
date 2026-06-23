@@ -207,3 +207,25 @@ def handle_list_disks(handler):
         if info:
             disks.append(info)
     return handler._send_json({"disks": disks})
+
+
+def handle_list_prefixes(handler):
+    """Return accessible root prefixes for the current user."""
+    prefixes = []
+    if handler and getattr(handler, "_is_root", False):
+        prefixes = config.get("filesystem", {}).get("allowed_prefixes", [])
+    else:
+        app_user = config.get('app_user', 'opencasa')
+        try:
+            import pwd
+            home = os.path.realpath(pwd.getpwnam(app_user).pw_dir)
+            if os.path.isdir(home):
+                prefixes = [home]
+        except (KeyError, ImportError, OSError):
+            pass
+    resolved = []
+    for p in prefixes:
+        rp = os.path.realpath(p)
+        if os.path.isdir(rp):
+            resolved.append(rp)
+    return handler._send_json({"prefixes": resolved})
