@@ -129,7 +129,17 @@ def scan_all():
             except (json.JSONDecodeError, OSError) as e:
                 logger.warning("manifest %s: %s", entry, e)
                 continue
-            has_icon = any(os.path.isfile(os.path.join(d, f'icon.{ext}')) for ext in ('svg', 'png', 'jpg', 'jpeg', 'gif'))
+            manifest_icon = m.get('icon')
+            if manifest_icon:
+                icon_path_full = os.path.join(d, manifest_icon)
+                icon_val = manifest_icon if os.path.isfile(icon_path_full) else None
+            else:
+                for ext in ('svg', 'png', 'jpg', 'jpeg', 'gif'):
+                    if os.path.isfile(os.path.join(d, f'icon.{ext}')):
+                        icon_val = f'icon.{ext}'
+                        break
+                else:
+                    icon_val = None
             apps.append({
                 'id': entry,
                 'name': m.get('name', entry),
@@ -144,7 +154,7 @@ def scan_all():
                 'has_widget': m.get('has_widget', False),
                 'open_in': m.get('open_in', 'iframe'),
                 'path': d,
-                'icon': has_icon,
+                'icon': icon_val,
                 'status': 'stopped',
                 'pid': 0,
             })
@@ -196,13 +206,10 @@ def list_apps():
 
 def icon_path(app_id):
     app = get_app(app_id)
-    if not app:
+    if not app or not app.get('icon'):
         return None
-    for ext in ('svg', 'png', 'jpg', 'jpeg', 'gif'):
-        p = os.path.join(app['path'], f'icon.{ext}')
-        if os.path.isfile(p):
-            return p
-    return None
+    p = os.path.join(app['path'], app['icon'])
+    return p if os.path.isfile(p) else None
 
 
 # ── Permission confirmation ──

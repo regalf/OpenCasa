@@ -1230,7 +1230,7 @@ function renderDashboard() {
               ${a.filter(app => isDashboardEnabled(app.id)).map(app => `
                 <div class="app-card" onclick="openApp('${escapeHtml(app.id)}','${app.type}','${app.status}','${app.open_in||'iframe'}')" style="cursor:pointer">
                   <button class="app-card-menu" onclick="event.stopPropagation();showAppDetail('${escapeHtml(app.id)}')">⋮</button>
-                  <img class="app-card-icon" src="/api/v1/apps/${encodeURIComponent(app.id)}/icon" alt="" onerror="this.style.display='none'"/>
+                  ${app.icon ? `<img class="app-card-icon" src="/api/v1/apps/${encodeURIComponent(app.id)}/icon" alt="" onerror="this.style.display='none'"/>` : ''}
                   <div class="app-card-icon-placeholder" style="${app.icon ? 'display:none' : ''}">${escapeHtml(app.name[0] || '?')}</div>
                   <span class="app-card-name">${escapeHtml(app.name)}</span>
                   ${app.status === 'running' ? `<span class="app-card-status running">● ${t('apps.running')}</span>` : ''}
@@ -1355,7 +1355,7 @@ function renderAppManager() {
         ${state.apps.map(app => `
           <div class="app-card" onclick="openApp('${escapeHtml(app.id)}','${app.type}','${app.status}','${app.open_in||'iframe'}')">
             <button class="app-card-menu" onclick="event.stopPropagation();showAppDetail('${escapeHtml(app.id)}')">⋮</button>
-            <img class="app-card-icon" src="/api/v1/apps/${encodeURIComponent(app.id)}/icon" alt="" onerror="this.style.display='none'"/>
+            ${app.icon ? `<img class="app-card-icon" src="/api/v1/apps/${encodeURIComponent(app.id)}/icon" alt="" onerror="this.style.display='none'"/>` : ''}
             <div class="app-card-icon-placeholder" style="${app.icon ? 'display:none' : ''}">${escapeHtml(app.name[0] || '?')}</div>
             <span class="app-card-name">${escapeHtml(app.name)}</span>
             ${app.status === 'running' ? `<span class="app-card-status running">● ${t('apps.running')}</span>` : ''}
