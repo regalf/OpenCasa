@@ -10,9 +10,6 @@
 
 set -u
 
-# Redirect stdin to terminal so 'read' works with curl | sh
-exec < /dev/tty 2>/dev/null || true
-
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -28,7 +25,8 @@ APP_USER="opencasa"
 
 prompt_yes() {
   printf "%s [Y/n] " "$1"
-  read _ans
+  _ans="y"
+  read _ans < /dev/tty 2>/dev/null || true
   case "$_ans" in
     n|N|no|No) return 1 ;;
     *) return 0 ;;
@@ -46,7 +44,8 @@ pick_os() {
   printf "${CYAN}Detected OS:${NC} ${_detected}\n"
   if ! prompt_yes "Is this correct?"; then
     printf "Select OS:\n  1) OpenBSD\n  2) Linux\n  > "
-    read _choice
+    _choice=""
+    read _choice < /dev/tty 2>/dev/null || true
     case "$_choice" in
       1) OS="openbsd" ;;
       2) OS="linux" ;;
