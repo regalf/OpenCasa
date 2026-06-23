@@ -140,6 +140,7 @@ def scan_all():
                 'port': m.get('port', 0),
                 'permissions': m.get('permissions', []),
                 'has_widget': m.get('has_widget', False),
+                'open_in': m.get('open_in', 'iframe'),
                 'path': d,
                 'icon': has_icon,
                 'status': 'stopped',

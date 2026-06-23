@@ -680,9 +680,13 @@ async function uninstallApp(id) {
   loadApps();
 }
 
-function openApp(id, type, status) {
+function openApp(id, type, status, openIn) {
   if (type === 'web' && status === 'running') {
-    navigateApp(id);
+    if (openIn === 'tab') {
+      window.open('/app/' + encodeURIComponent(id) + '/', '_blank');
+    } else {
+      navigateApp(id);
+    }
   } else {
     showAppDetail(id);
   }
@@ -943,7 +947,7 @@ function updateDashboardValues() {
     if (enabled.length) {
       wr.innerHTML = enabled.map(w => {
         const wd = state.widgetsData[w.id];
-        return '<div class="widget-mini" onclick="openApp(\'' + escapeHtml(w.id) + '\',\'' + w.type + '\',\'' + w.status + '\')">' +
+        return '<div class="widget-mini" onclick="openApp(\'' + escapeHtml(w.id) + '\',\'' + w.type + '\',\'' + w.status + '\',\'' + (w.open_in || 'iframe') + '\')">' +
           '<h4>' + escapeHtml(w.name) + '</h4>' +
           (wd ? Object.entries(wd).map(([k,v]) => {
             const lbl = typeof v === 'object' ? (v.label || '') : String(v);
@@ -1215,7 +1219,7 @@ function renderDashboard() {
           ${a.length > 0 ? `
             <div class="app-grid">
               ${a.filter(app => isDashboardEnabled(app.id)).map(app => `
-                <div class="app-card" onclick="openApp('${escapeHtml(app.id)}','${app.type}','${app.status}')" style="cursor:pointer">
+                <div class="app-card" onclick="openApp('${escapeHtml(app.id)}','${app.type}','${app.status}','${app.open_in||'iframe'}')" style="cursor:pointer">
                   <button class="app-card-menu" onclick="event.stopPropagation();showAppDetail('${escapeHtml(app.id)}')">⋮</button>
                   <img class="app-card-icon" src="/api/v1/apps/${encodeURIComponent(app.id)}/icon" alt="" onerror="this.style.display='none'"/>
                   <div class="app-card-icon-placeholder" style="${app.icon ? 'display:none' : ''}">${escapeHtml(app.name[0] || '?')}</div>
@@ -1234,7 +1238,7 @@ function renderDashboard() {
           ${a.filter(x => x.has_widget && isWidgetEnabled(x.id)).map(w => {
             const wd = state.widgetsData[w.id];
             return `
-              <div class="widget-mini" onclick="openApp('${escapeHtml(w.id)}','${w.type}','${w.status}')">
+              <div class="widget-mini" onclick="openApp('${escapeHtml(w.id)}','${w.type}','${w.status}','${w.open_in||'iframe'}')">
                 <h4>${escapeHtml(w.name)}</h4>
                 ${wd ? Object.entries(wd).map(([k,v]) => {
                   const lbl = typeof v === 'object' ? (v.label || '') : String(v);
@@ -1340,7 +1344,7 @@ function renderAppManager() {
     ${state.apps.length === 0 ? `<p class="dim">${t('apps.empty_list')}</p>` : `
       <div class="apps-grid">
         ${state.apps.map(app => `
-          <div class="app-card" onclick="openApp('${escapeHtml(app.id)}','${app.type}','${app.status}')">
+          <div class="app-card" onclick="openApp('${escapeHtml(app.id)}','${app.type}','${app.status}','${app.open_in||'iframe'}')">
             <button class="app-card-menu" onclick="event.stopPropagation();showAppDetail('${escapeHtml(app.id)}')">⋮</button>
             <img class="app-card-icon" src="/api/v1/apps/${encodeURIComponent(app.id)}/icon" alt="" onerror="this.style.display='none'"/>
             <div class="app-card-icon-placeholder" style="${app.icon ? 'display:none' : ''}">${escapeHtml(app.name[0] || '?')}</div>
