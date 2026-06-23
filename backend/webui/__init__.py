@@ -816,16 +816,12 @@ def main():
     port = args.port or config["server"]["port"]
 
     print(r"""
-    ╔══════════════════════════════════╗
-    ║        ___                       ║
-    ║       / _ \ _ __   ___  _ __     ║
-    ║      | | | | '_ \ / _ \| '_ \    ║
-    ║      | |_| | |_) | (_) | |_) |   ║
-    ║       \___/| .__/ \___/| .__/    ║
-    ║            |_|         |_|       ║
-    ║          OpenCasa v1.0           ║
-    ║  Server Manager for OpenBSD      ║
-    ╚══════════════════════════════════╝""")
+   █████   ██████   ███████  ██   ██   █████    █████    █████    █████
+  ██   ██  ██   ██  ██       ███  ██  ██       ██   ██  ██       ██   ██
+  ██   ██  ██████   ██████   ████ ██  ██       ███████   █████   ███████
+  ██   ██  ██       ██       ██ ████  ██       ██   ██       ██  ██   ██
+   █████   ██       ███████  ██  ███   █████   ██   ██   █████   ██   ██
+  OpenCasa v1.0 — Server Manager for OpenBSD/macppc""")
 
     server = ThreadedHTTPServer((host, port), OpenCasaHandler)
     server.socket.settimeout(1.0)
