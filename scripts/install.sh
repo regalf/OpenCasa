@@ -3,6 +3,10 @@
 # OpenCasa Installer
 # Works on OpenBSD and Linux
 #
+# Usage:
+#   Local:  doas sh scripts/install.sh
+#   Remote: curl -sL https://github.com/regalf/OpenCasa/raw/main/scripts/install.sh | doas sh
+#
 
 set -u
 
@@ -13,7 +17,8 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m'
 
-SRC_DIR="${1:-.}"
+REPO="https://github.com/regalf/OpenCasa"
+SRC_DIR="${1:-}"
 DEST_DIR="${2:-/usr/local/webui}"
 CONFIG_PATH="${3:-/etc/opencasa.json}"
 APP_USER="opencasa"
@@ -30,15 +35,13 @@ prompt_yes() {
 pick_os() {
   if [ -f /bsd ]; then
     _detected="openbsd"
-  elif [ -f /proc/version ] || uname -s | grep -qi linux; then
+  elif uname -s | grep -qi linux; then
     _detected="linux"
   else
     _detected="unknown"
   fi
   printf "${CYAN}Detected OS:${NC} ${_detected}\n"
-  if prompt_yes "Is this correct?"; then
-    OS="$_detected"
-  else
+  if ! prompt_yes "Is this correct?"; then
     printf "Select OS:\n  1) OpenBSD\n  2) Linux\n  > "
     read _choice
     case "$_choice" in
@@ -46,25 +49,72 @@ pick_os() {
       2) OS="linux" ;;
       *) printf "${RED}Invalid choice${NC}\n"; exit 1 ;;
     esac
+  else
+    OS="$_detected"
   fi
 }
 
-check_root() {
-  if command -v doas >/dev/null 2>&1; then
-    _su="doas"
-  elif command -v sudo >/dev/null 2>&1; then
-    _su="sudo"
-  else
-    _su=""
-  fi
+ensure_root() {
   if [ "$(id -u)" -ne 0 ]; then
-    if [ -n "$_su" ]; then
-      printf "${YELLOW}Not running as root. Re-executing with %s...${NC}\n" "$_su"
-      exec $_su "$0" "$@"
-    else
-      printf "${RED}Must be run as root.${NC}\n"
-      exit 1
+    if [ -f "$0" ]; then
+      if command -v doas >/dev/null 2>&1; then
+        exec doas "$0" "$@"
+      elif command -v sudo >/dev/null 2>&1; then
+        exec sudo "$0" "$@"
+      fi
     fi
+    printf "${YELLOW}Re-run with: doas sh %s${NC}\n" "${0:-scripts/install.sh}"
+    printf "${YELLOW}Or pipe: curl -sL %s/raw/main/scripts/install.sh | doas sh${NC}\n" "$REPO"
+    exit 1
+  fi
+}
+
+fetch_source() {
+  if [ -n "$SRC_DIR" ]; then
+    if [ -f "$SRC_DIR/backend/webui.py" ]; then
+      return 0
+    fi
+    printf "${YELLOW}Source dir %s invalid, downloading...${NC}\n" "$SRC_DIR"
+  elif [ -f "./backend/webui.py" ]; then
+    SRC_DIR="."
+    printf "${GREEN}Using local source:${NC} $(pwd)\n"
+    return 0
+  elif [ -f "../backend/webui.py" ]; then
+    SRC_DIR=".."
+    printf "${GREEN}Using local source:${NC} $(pwd)\n"
+    return 0
+  fi
+
+  printf "\n${CYAN}Downloading OpenCasa from GitHub...${NC}\n"
+  _tmp=$(mktemp -d /tmp/opencasa-XXXXXX) || exit 1
+  _tar="${REPO}/archive/refs/heads/main.tar.gz"
+
+  if command -v ftp >/dev/null 2>&1; then
+    ftp -o - "$_tar" 2>/dev/null | tar xzf - -C "$_tmp" 2>/dev/null || {
+      printf "${RED}Download failed.${NC}\n"; rm -rf "$_tmp"; exit 1
+    }
+  elif command -v curl >/dev/null 2>&1; then
+    curl -sL "$_tar" | tar xzf - -C "$_tmp" 2>/dev/null || {
+      printf "${RED}Download failed.${NC}\n"; rm -rf "$_tmp"; exit 1
+    }
+  elif command -v wget >/dev/null 2>&1; then
+    wget -qO- "$_tar" | tar xzf - -C "$_tmp" 2>/dev/null || {
+      printf "${RED}Download failed.${NC}\n"; rm -rf "$_tmp"; exit 1
+    }
+  else
+    printf "${RED}No download tool found (ftp/curl/wget).${NC}\n"
+    printf "Install one and retry.\n"
+    rm -rf "$_tmp"
+    exit 1
+  fi
+
+  SRC_DIR="$_tmp/OpenCasa-main"
+  printf "  ${GREEN}✓${NC} Downloaded to ${SRC_DIR}\n"
+}
+
+cleanup() {
+  if echo "$SRC_DIR" | grep -q '/tmp/opencasa-'; then
+    rm -rf "$SRC_DIR"
   fi
 }
 
@@ -85,7 +135,6 @@ show_summary() {
 
 ${BOLD}Installation Summary${NC}
   OS:          ${OS}
-  Source:      $(cd "$SRC_DIR" 2>/dev/null && pwd || echo "$SRC_DIR")
   Destination: ${DEST_DIR}
   Config:      ${CONFIG_PATH}
   App user:    ${APP_USER}
@@ -105,7 +154,6 @@ EOF
 
 install_files() {
   printf "\n${BOLD}Installing files...${NC}\n"
-
   mkdir -p "$DEST_DIR/webui" "$DEST_DIR/locales" "$DEST_DIR/apps"
 
   cp "$SRC_DIR/backend/webui.py" "$DEST_DIR/webui.py" && printf "  ${GREEN}✓${NC} webui.py\n" || printf "  ${RED}✗${NC} webui.py\n"
@@ -121,20 +169,15 @@ install_files() {
 setup_config() {
   if [ -f "$CONFIG_PATH" ]; then
     printf "\n${YELLOW}Config already exists at %s${NC}\n" "$CONFIG_PATH"
-    if prompt_yes "Overwrite?"; then
-      _overwrite=y
-    else
-      _overwrite=n
+    if ! prompt_yes "Overwrite?"; then
+      printf "  ${YELLOW}Keeping existing config.${NC}\n"
+      return
     fi
-  else
-    _overwrite=y
   fi
-  if [ "$_overwrite" = y ]; then
-    _jwt=$( (command -v openssl >/dev/null && openssl rand -hex 32) || (command -v python3 >/dev/null && python3 -c "import secrets; print(secrets.token_hex(32))") || echo "CHANGE-ME-$(date +%s)" )
-    sed "s/JWT_SECRET_PLACEHOLDER/${_jwt}/" "$SRC_DIR/opencasa.json.example" > "$CONFIG_PATH" 2>/dev/null || cp "$SRC_DIR/opencasa.json.example" "$CONFIG_PATH"
-    printf "  ${GREEN}✓${NC} %s created\n" "$CONFIG_PATH"
-  fi
+  _jwt=$( (command -v openssl >/dev/null && openssl rand -hex 32) || (command -v python3 >/dev/null && python3 -c "import secrets; print(secrets.token_hex(32))") || echo "CHANGE-ME-$(date +%s)" )
+  sed "s/JWT_SECRET_PLACEHOLDER/${_jwt}/" "$SRC_DIR/opencasa.json.example" > "$CONFIG_PATH" 2>/dev/null || cp "$SRC_DIR/opencasa.json.example" "$CONFIG_PATH"
   chmod 600 "$CONFIG_PATH"
+  printf "  ${GREEN}✓${NC} %s created\n" "$CONFIG_PATH"
 }
 
 setup_service() {
@@ -149,8 +192,8 @@ setup_service() {
   else
     cp "$SRC_DIR/scripts/webui.service" /etc/systemd/system/webui.service
     chmod 644 /etc/systemd/system/webui.service
-    printf "  ${GREEN}✓${NC} /etc/systemd/system/webui.service\n"
     systemctl daemon-reload
+    printf "  ${GREEN}✓${NC} /etc/systemd/system/webui.service\n"
     if prompt_yes "Enable and start webui now?"; then
       systemctl enable --now webui && printf "  ${GREEN}✓${NC} Service started\n" || printf "  ${RED}✗${NC} Service start failed\n"
     fi
@@ -160,13 +203,17 @@ setup_service() {
 check_python() {
   printf "\n${BOLD}Checking Python...${NC}\n"
   if command -v python3 >/dev/null 2>&1; then
-    python3 --version | head -1
-    printf "  ${GREEN}✓${NC}\n"
+    printf "  %s " "$(python3 --version 2>&1)"
+    printf "${GREEN}✓${NC}\n"
   elif command -v python >/dev/null 2>&1; then
-    python --version | head -1
-    printf "  ${YELLOW}⚠ python not python3, linking...${NC}\n"
+    _py=$(command -v python)
+    printf "  %s " "$(${_py} --version 2>&1)"
     if [ "$OS" = "openbsd" ]; then
-      ln -sf "$(command -v python)" /usr/local/bin/python3 2>/dev/null || printf "  ${YELLOW}Create symlink manually${NC}\n"
+      printf "${YELLOW}→ symlinking to python3${NC}\n"
+      ln -sf "$_py" /usr/local/bin/python3 2>/dev/null || printf "  ${YELLOW}Symlink failed, create manually${NC}\n"
+    else
+      printf "${YELLOW}→ symlinking to python3${NC}\n"
+      ln -sf "$_py" /usr/local/bin/python3 2>/dev/null || printf "  ${YELLOW}Symlink failed, create manually${NC}\n"
     fi
   else
     printf "  ${RED}✗ Python not found!${NC}\n"
@@ -183,19 +230,19 @@ check_python() {
 
 setup_app_user() {
   printf "\n${BOLD}App user (${APP_USER})...${NC}\n"
-  if command -v id >/dev/null 2>&1 && id "$APP_USER" >/dev/null 2>&1; then
+  if id "$APP_USER" >/dev/null 2>&1; then
     printf "  ${GREEN}✓${NC} User %s exists\n" "$APP_USER"
-  else
-    printf "  ${YELLOW}User %s not found.${NC}\n" "$APP_USER"
-    if prompt_yes "Create ${APP_USER} user?"; then
-      if [ "$OS" = "openbsd" ]; then
-        useradd -m "$APP_USER" && printf "  ${GREEN}✓${NC} Created\n" || printf "  ${RED}✗${NC} Failed\n"
-      else
-        useradd -m -s /usr/sbin/nologin "$APP_USER" 2>/dev/null || useradd -m "$APP_USER" && printf "  ${GREEN}✓${NC} Created\n" || printf "  ${RED}✗${NC} Failed\n"
-      fi
+    return
+  fi
+  printf "  ${YELLOW}User %s not found.${NC}\n" "$APP_USER"
+  if prompt_yes "Create ${APP_USER} user?"; then
+    if [ "$OS" = "openbsd" ]; then
+      useradd -m "$APP_USER" && printf "  ${GREEN}✓${NC} Created\n" || printf "  ${RED}✗${NC} Failed\n"
     else
-      printf "  ${YELLOW}Skipped. Create manually with: useradd -m %s${NC}\n" "$APP_USER"
+      useradd -m -s /usr/sbin/nologin "$APP_USER" 2>/dev/null || useradd -m "$APP_USER" && printf "  ${GREEN}✓${NC} Created\n" || printf "  ${RED}✗${NC} Failed\n"
     fi
+  else
+    printf "  ${YELLOW}Skipped. Create manually: useradd -m %s${NC}\n" "$APP_USER"
   fi
 }
 
@@ -214,19 +261,19 @@ print(c.get('auth',{}).get('root_password','admin'))
     printf "  ${BOLD}OpenCasa is ready!${NC}\n"
     printf "  URL:      http://$(hostname)/\n"
     printf "  User:     ${BOLD}%s${NC}\n" "$_ru"
-    printf "  Password: ${YELLOW}%s${NC} (change on first login)\n" "$_rpw"
+    printf "  Password: ${YELLOW}%s${NC}\n" "$_rpw"
     printf "${CYAN}========================================${NC}\n"
-  else
-    printf "\n${BOLD}Installation complete!${NC}\n"
   fi
 }
 
 # ---- main ----
 banner
 pick_os
-check_root
-show_summary
+ensure_root
+fetch_source
+trap cleanup EXIT
 
+show_summary
 if ! prompt_yes "Proceed with installation?"; then
   printf "${YELLOW}Aborted.${NC}\n"
   exit 0
