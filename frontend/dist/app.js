@@ -1159,10 +1159,13 @@ function render() {
       `).join('')}
       ` : ''}
       <div class="spacer"></div>
-      <button class="sidebar-notif-btn" onclick="toggleNotifPanel()">
-        🔔<span class="notif-badge" id="notif-count"></span>
-        <span>${t('notif.title')}</span>
-      </button>
+      <div class="notif-wrap">
+        <button class="sidebar-notif-btn" onclick="toggleNotifPanel()">
+          🔔<span class="notif-badge" id="notif-count"></span>
+          <span>${t('notif.title')}</span>
+        </button>
+        ${state.notifPanelOpen ? renderNotifPanel() : ''}
+      </div>
       <button class="sidebar-user" onclick="toggleAccountModal()">
         ${state.avatar ? `<img class="sidebar-user-avatar" src="${escapeHtml(state.avatar)}" alt="" />` : `<span class="sidebar-user-avatar" style="background:${getAvatarColor(state.username)}">${escapeHtml(state.username[0]||t('common.placeholder_initial')).toUpperCase()}</span>`}
         <span class="sidebar-user-name">${escapeHtml(state.username)}</span>
@@ -1176,7 +1179,6 @@ function render() {
       ${state.view === 'controlpanel' ? renderControlPanel() : ''}
       ${appTabId ? renderAppTab(appTabId) : ''}
     </section>
-    ${state.notifPanelOpen ? renderNotifPanel() : ''}
   `;
   updateNotifBadge();
 }
@@ -1641,26 +1643,24 @@ function formatNotifTime(iso) {
 function renderNotifPanel() {
   const n = state.notifications;
   return `
-    <div class="notif-overlay" onclick="if(event.target===this)closeNotifPanel()">
-      <div class="notif-panel">
-        <div class="notif-panel-header">
-          <h3>${t('notif.title')}</h3>
-          <div style="display:flex;gap:.5rem;align-items:center">
-            ${n.length > 0 ? `<button class="btn" style="font-size:.8rem" onclick="clearNotifs()">${t('notif.clear_all')}</button>` : ''}
-            <button class="btn" style="font-size:.8rem" onclick="closeNotifPanel()">✕</button>
-          </div>
+    <div class="notif-panel">
+      <div class="notif-panel-header">
+        <h3>${t('notif.title')}</h3>
+        <div style="display:flex;gap:.5rem;align-items:center">
+          ${n.length > 0 ? `<button class="btn" style="font-size:.8rem" onclick="clearNotifs()">${t('notif.clear_all')}</button>` : ''}
+          <button class="btn" style="font-size:.8rem" onclick="closeNotifPanel()">✕</button>
         </div>
-        <div class="notif-panel-body">
-          ${n.length === 0 ? `<div class="notif-empty">${t('notif.empty')}</div>` : n.map(not => `
-            <div class="notif-item notif-${not.severity || 'info'}">
-              <div class="notif-item-top">
-                <strong>${escapeHtml(not.app_id || not.title)}</strong>
-                <span class="notif-time">${formatNotifTime(not.timestamp)}</span>
-              </div>
-              <div class="notif-item-body">${escapeHtml(not.message)}</div>
-              <button class="notif-item-del" onclick="deleteNotif('${escapeHtml(not.id)}')">${t('notif.delete')}</button>
-            </div>`).join('')}
-        </div>
+      </div>
+      <div class="notif-panel-body">
+        ${n.length === 0 ? `<div class="notif-empty">${t('notif.empty')}</div>` : n.map(not => `
+          <div class="notif-item notif-${not.severity || 'info'}">
+            <div class="notif-item-top">
+              <strong>${escapeHtml(not.app_id || not.title)}</strong>
+              <span class="notif-time">${formatNotifTime(not.timestamp)}</span>
+            </div>
+            <div class="notif-item-body">${escapeHtml(not.message)}</div>
+            <button class="notif-item-del" onclick="deleteNotif('${escapeHtml(not.id)}')">${t('notif.delete')}</button>
+          </div>`).join('')}
       </div>
     </div>
   `;
@@ -1671,6 +1671,9 @@ async function toggleNotifPanel() {
     state.notifPanelOpen = false;
     render();
     return;
+  }
+  if (window.innerWidth <= 640) {
+    document.getElementById('sidebar')?.classList.add('open');
   }
   try {
     const res = await api('GET', '/notifications');
@@ -1685,6 +1688,17 @@ function closeNotifPanel() {
   state.notifPanelOpen = false;
   render();
 }
+
+document.addEventListener('click', function(e) {
+  if (state.notifPanelOpen) {
+    const p = document.querySelector('.notif-panel');
+    const b = document.querySelector('.sidebar-notif-btn');
+    if (p && !p.contains(e.target) && b && !b.contains(e.target)) {
+      state.notifPanelOpen = false;
+      render();
+    }
+  }
+});
 
 async function deleteNotif(id) {
   try {
