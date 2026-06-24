@@ -220,17 +220,18 @@ def _get_app_user_home():
 
 
 def init_user_folders():
-    """Create standard user folders in the app_user home directory on first run."""
+    """Create standard user folders in the app_user home directory if missing."""
     home = _get_app_user_home()
     if not home:
         return
     folders = ['Documents', 'Music', 'Video', 'Pictures', 'DATA']
     for name in folders:
         p = os.path.join(home, name)
-        try:
-            os.makedirs(p, exist_ok=True)
-        except OSError:
-            pass
+        if not os.path.isdir(p):
+            try:
+                os.mkdir(p)
+            except OSError:
+                pass
 
 
 def handle_list_prefixes(handler):
