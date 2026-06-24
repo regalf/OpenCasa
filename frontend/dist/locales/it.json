@@ -180,5 +180,11 @@
   "files.rate_bytes": "B/s",
   "files.rate_kilobytes": "KB/s",
   "files.rate_megabytes": "MB/s",
-  "files.rate_gigabytes": "GB/s"
+  "files.rate_gigabytes": "GB/s",
+
+  "notif.title": "Notifiche",
+  "notif.clear_all": "Cancella Tutte",
+  "notif.delete": "Elimina",
+  "notif.empty": "Nessuna notifica",
+  "notif.now": "ora"
 }

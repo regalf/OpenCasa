@@ -379,9 +379,20 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
                     return self._send_json({"permissions": get_permission_state(app_id, self._current_user)})
 
         if path == "/api/v1/notifications":
-            from .notifications import notifications, notif_lock
-            with notif_lock:
-                return self._send_json({"notifications": list(notifications)})
+            from .notifications import get_notifications
+            return self._send_json({"notifications": get_notifications(self._current_user)})
+
+        if path == "/api/v1/notifications/delete":
+            data = self._json_body()
+            if not data or "id" not in data:
+                return self._send_error(400, "missing id")
+            from .notifications import delete_notification
+            return self._send_json({"success": delete_notification(data["id"])})
+
+        if path == "/api/v1/notifications/clear":
+            from .notifications import clear_notifications
+            clear_notifications()
+            return self._send_json({"success": True})
 
         # DB endpoints — keys are scoped per user
         if path == "/api/v1/db/get" or path == "/api/v1/db/get/":
@@ -666,8 +677,21 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
                 data.get("title", ""),
                 data.get("message", ""),
                 data.get("severity", "info"),
+                self._current_user,
             )
             return self._send_json(n)
+
+        if path == "/api/v1/notifications/delete":
+            data = self._json_body()
+            if not data or "id" not in data:
+                return self._send_error(400, "missing id")
+            from .notifications import delete_notification
+            return self._send_json({"success": delete_notification(data["id"], self._current_user)})
+
+        if path == "/api/v1/notifications/clear":
+            from .notifications import clear_notifications
+            clear_notifications(self._current_user)
+            return self._send_json({"success": True})
 
         # DB set — user-scoped key
         if path == "/api/v1/db/set" or path == "/api/v1/db/set/":
@@ -865,9 +889,7 @@ def main():
         logging.warning("root password changed outside UI — system tampered")
 
     from .appmanager import init as appmanager_init
-    from .notifications import load_notifications
     appmanager_init()
-    load_notifications()
 
     from .filemanager import init_user_folders
     init_user_folders()

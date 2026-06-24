@@ -1,33 +1,37 @@
-"""Sistema di notifiche con persistenza JSON."""
+"""Sistema di notifiche con persistenza su database per utente."""
 
 import json
 import os
 import threading
 from datetime import datetime, timezone
 
-from . import NOTIF_FILE
+from .database import get as _db_get, set as _db_set
 
 
-notifications = []
-notif_lock = threading.Lock()
+_lock = threading.Lock()
 
 
-def load_notifications():
-    global notifications
-    try:
-        with open(NOTIF_FILE) as f:
-            notifications = json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        notifications = []
+def _notif_key(username):
+    return f"_notifications:{username}"
 
 
-def save_notifications():
-    os.makedirs(os.path.dirname(NOTIF_FILE), exist_ok=True)
-    with open(NOTIF_FILE, "w") as f:
-        json.dump(notifications, f, indent=2)
+def get_notifications(username):
+    if not username:
+        return []
+    raw = _db_get(_notif_key(username))
+    if raw:
+        try:
+            return json.loads(raw)
+        except (json.JSONDecodeError, TypeError):
+            return []
+    return []
 
 
-def push_notification(app_id, title, message, severity="info"):
+def _save_notifications(username, notifs):
+    _db_set(_notif_key(username), json.dumps(notifs))
+
+
+def push_notification(app_id, title, message, severity="info", username=None):
     n = {
         "id": datetime.now().strftime("%Y%m%d%H%M%S.%f") + "-" + os.urandom(4).hex(),
         "app_id": app_id,
@@ -37,7 +41,24 @@ def push_notification(app_id, title, message, severity="info"):
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "read": False,
     }
-    with notif_lock:
-        notifications.append(n)
-    save_notifications()
+    with _lock:
+        notifs = get_notifications(username)
+        notifs.append(n)
+        _save_notifications(username, notifs)
     return n
+
+
+def delete_notification(notif_id, username=None):
+    with _lock:
+        notifs = get_notifications(username)
+        for i, n in enumerate(notifs):
+            if n["id"] == notif_id:
+                notifs.pop(i)
+                _save_notifications(username, notifs)
+                return True
+    return False
+
+
+def clear_notifications(username=None):
+    with _lock:
+        _save_notifications(username, [])

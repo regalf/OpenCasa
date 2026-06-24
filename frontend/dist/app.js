@@ -64,6 +64,7 @@ let state = {
   installedMsg: '',
   fmPrefixes: [],
   fmView: 'home',
+  notifPanelOpen: false,
 };
 
 async function api(method, path, body) {
@@ -252,6 +253,7 @@ async function fetchAll() {
       loadDashboardPrefs();
     }
     if (n && n.notifications) state.notifications = n.notifications;
+    updateNotifBadge();
     if (i && i.hostname) state.info = i;
   } catch(e) { state.error = e.message; }
 
@@ -1138,9 +1140,7 @@ function render() {
   const webApps = state.apps.filter(a => a.type === 'web' && a.open_in !== 'tab');
   const appTabId = state.view === 'app' ? state.appViewId : null;
   app.innerHTML = `
-    <button class="hamburger" onclick="toggleSidebar()">☰</button>
     <nav class="sidebar" id="sidebar">
-      <div class="brand">${t('app.brand')}</div>
       <button class="${state.view==='dashboard'?'active':''}" onclick="navigate('dashboard')">${t('nav.dashboard')}</button>
       <button class="${state.view==='files'?'active':''}" onclick="navigate('files')">${t('nav.files')}</button>
       <button class="${state.view==='apps'?'active':''}" onclick="navigate('apps')">${t('nav.apps')}</button>
@@ -1164,13 +1164,23 @@ function render() {
       <div id="acc-modal-area"></div>
     </nav>
     <section class="content">
+      <div class="topbar">
+        <button class="hamburger" onclick="toggleSidebar()">☰</button>
+        <span class="topbar-brand" onclick="navigate('dashboard')">${t('app.brand')}</span>
+        <div class="topbar-spacer"></div>
+        <button class="notif-bell" onclick="toggleNotifPanel()">
+          🔔<span class="notif-badge" id="notif-count"></span>
+        </button>
+      </div>
       ${state.view === 'dashboard' ? renderDashboard() : ''}
       ${state.view === 'files' ? renderFileManager() : ''}
       ${state.view === 'apps' ? renderAppManager() : ''}
       ${state.view === 'controlpanel' ? renderControlPanel() : ''}
       ${appTabId ? renderAppTab(appTabId) : ''}
+      ${state.notifPanelOpen ? renderNotifPanel() : ''}
     </section>
   `;
+  updateNotifBadge();
 }
 
 function renderSetup() {
@@ -1343,16 +1353,6 @@ function renderDashboard() {
         </div>
       </div>
       ` : ''}
-      ${n.length > 0 ? `
-        <h2 class="section-title">${t('dashboard.notifications')}</h2>
-        <div class="notifications">
-          ${n.map(not => `
-            <div class="notif ${not.severity || 'info'}">
-              <strong>${escapeHtml(not.title)}</strong> — ${escapeHtml(not.message)}
-              <span class="time">${escapeHtml(not.timestamp)}</span>
-            </div>`).join('')}
-            </div>
-          ` : ''}
       ${state.error ? `<p style="color:#f87171">${escapeHtml(state.error)}</p>` : ''}
     </div>
   `;
@@ -1620,6 +1620,92 @@ function renderControlPanel() {
   `;
 }
 
+// ── Notifications ──
+
+function updateNotifBadge() {
+  const badge = document.getElementById('notif-count');
+  if (!badge) return;
+  const count = state.notifications.length;
+  badge.textContent = count > 99 ? '99+' : count;
+  badge.classList.toggle('show', count > 0);
+}
+
+function formatNotifTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const diff = Math.floor((Date.now() - d.getTime()) / 1000);
+  if (diff < 60) return t('notif.now');
+  if (diff < 3600) return Math.floor(diff / 60) + 'm';
+  if (diff < 86400) return Math.floor(diff / 3600) + 'h';
+  return d.toLocaleDateString();
+}
+
+function renderNotifPanel() {
+  const n = state.notifications;
+  return `
+    <div class="notif-overlay" onclick="if(event.target===this)closeNotifPanel()">
+      <div class="notif-panel">
+        <div class="notif-panel-header">
+          <h3>${t('notif.title')}</h3>
+          <div style="display:flex;gap:.5rem;align-items:center">
+            ${n.length > 0 ? `<button class="btn" style="font-size:.8rem" onclick="clearNotifs()">${t('notif.clear_all')}</button>` : ''}
+            <button class="btn" style="font-size:.8rem" onclick="closeNotifPanel()">✕</button>
+          </div>
+        </div>
+        <div class="notif-panel-body">
+          ${n.length === 0 ? `<div class="notif-empty">${t('notif.empty')}</div>` : n.map(not => `
+            <div class="notif-item notif-${not.severity || 'info'}">
+              <div class="notif-item-top">
+                <strong>${escapeHtml(not.app_id || not.title)}</strong>
+                <span class="notif-time">${formatNotifTime(not.timestamp)}</span>
+              </div>
+              <div class="notif-item-body">${escapeHtml(not.message)}</div>
+              <button class="notif-item-del" onclick="deleteNotif('${escapeHtml(not.id)}')">${t('notif.delete')}</button>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function toggleNotifPanel() {
+  if (state.notifPanelOpen) {
+    state.notifPanelOpen = false;
+    render();
+    return;
+  }
+  try {
+    const res = await api('GET', '/notifications');
+    if (res && res.notifications) state.notifications = res.notifications;
+    updateNotifBadge();
+  } catch(e) {}
+  state.notifPanelOpen = true;
+  render();
+}
+
+function closeNotifPanel() {
+  state.notifPanelOpen = false;
+  render();
+}
+
+async function deleteNotif(id) {
+  try {
+    await api('POST', '/notifications/delete', {id: id});
+    state.notifications = state.notifications.filter(n => n.id !== id);
+    updateNotifBadge();
+    render();
+  } catch(e) {}
+}
+
+async function clearNotifs() {
+  try {
+    await api('POST', '/notifications/clear');
+    state.notifications = [];
+    updateNotifBadge();
+    render();
+  } catch(e) {}
+}
+
 // Quick poll system stats every 10s (CPU/memory/network), full dashboard every 30s
 async function fetchStats() {
   try {
@@ -1711,4 +1797,8 @@ window.goHome = goHome;
 window.loadFiles = loadFiles;
 window.togglePin = togglePin;
 window.togglePinFromBrowse = togglePinFromBrowse;
+window.toggleNotifPanel = toggleNotifPanel;
+window.closeNotifPanel = closeNotifPanel;
+window.deleteNotif = deleteNotif;
+window.clearNotifs = clearNotifs;
 })();
