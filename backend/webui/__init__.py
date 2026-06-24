@@ -366,7 +366,7 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
                     if not app:
                         return self._send_error(404, "app not found")
                     app["logs"] = get_logs(app_id, 5)
-                    app["perm_state"] = get_permission_state(app_id)
+                    app["perm_state"] = get_permission_state(app_id, self._current_user)
                     return self._send_json({"app": app})
                 if action == "logs":
                     return self._send_json({"logs": get_logs(app_id)})
@@ -376,7 +376,7 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
                         return self._send_json({"data": None})
                     return self._send_json({"data": data})
                 if action == "permissions":
-                    return self._send_json({"permissions": get_permission_state(app_id)})
+                    return self._send_json({"permissions": get_permission_state(app_id, self._current_user)})
 
         if path == "/api/v1/notifications":
             from .notifications import notifications, notif_lock
@@ -627,9 +627,9 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
                 action = parts[1] if len(parts) > 1 else ""
                 from .appmanager import run_app, start_web_app, stop_web_app, uninstall_app, get_app
                 if action == "run":
-                    return self._send_json(run_app(app_id))
+                    return self._send_json(run_app(app_id, self._current_user))
                 if action == "start":
-                    return self._send_json(start_web_app(app_id))
+                    return self._send_json(start_web_app(app_id, self._current_user))
                 if action == "stop":
                     return self._send_json(stop_web_app(app_id))
                 if action == "uninstall":
@@ -639,7 +639,7 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
                     app_obj = get_app(app_id)
                     if not app_obj:
                         return self._send_error(404, "app not found")
-                    confirm_app(app_id, app_obj["permissions"])
+                    confirm_app(app_id, app_obj["permissions"], self._current_user)
                     return self._send_json({"success": True})
                 if action == "set-port":
                     data = self._json_body()
@@ -653,7 +653,7 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
                     if not data or "permission" not in data or "granted" not in data:
                         return self._send_error(400, "missing permission or granted")
                     from .appmanager import set_app_permission
-                    set_app_permission(app_id, data["permission"], data["granted"])
+                    set_app_permission(app_id, data["permission"], data["granted"], self._current_user)
                     return self._send_json({"success": True})
 
         if path == "/api/v1/notify":

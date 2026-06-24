@@ -291,9 +291,16 @@ def icon_path(app_id):
 
 # ── Permission confirmation ──
 
-def _get_perm_state(app_id):
+def _perm_key(app_id, username=None):
+    base = "_app_perm_state"
+    if username:
+        return f"{base}:{username}:{app_id}"
+    return f"{base}:{app_id}"
+
+
+def _get_perm_state(app_id, username=None):
     from . import database as dbmod
-    key = "_app_perm_state:" + app_id
+    key = _perm_key(app_id, username)
     data = dbmod.get(key)
     if data:
         try:
@@ -303,14 +310,14 @@ def _get_perm_state(app_id):
     return {}
 
 
-def _set_perm_state(app_id, state):
+def _set_perm_state(app_id, username, state):
     from . import database as dbmod
-    key = "_app_perm_state:" + app_id
+    key = _perm_key(app_id, username)
     dbmod.set(key, json.dumps(state))
 
 
-def get_permission_state(app_id):
-    state = _get_perm_state(app_id)
+def get_permission_state(app_id, username=None):
+    state = _get_perm_state(app_id, username)
     app = get_app(app_id)
     if not app:
         return {}
@@ -320,8 +327,8 @@ def get_permission_state(app_id):
     return result
 
 
-def _get_granted_permissions(app_id):
-    state = _get_perm_state(app_id)
+def _get_granted_permissions(app_id, username=None):
+    state = _get_perm_state(app_id, username)
     if state:
         return [p for p, g in state.items() if g]
     app = get_app(app_id)
@@ -330,10 +337,10 @@ def _get_granted_permissions(app_id):
     return []
 
 
-def is_app_confirmed(app_id, permissions):
+def is_app_confirmed(app_id, permissions, username=None):
     if not permissions:
         return True
-    state = _get_perm_state(app_id)
+    state = _get_perm_state(app_id, username)
     if not state:
         from . import database as dbmod
         key = "_app_confirm:" + app_id
@@ -343,7 +350,8 @@ def is_app_confirmed(app_id, permissions):
                 confirmed = json.loads(data)
                 if confirmed.get("permissions") == permissions:
                     new_state = {p: True for p in permissions}
-                    _set_perm_state(app_id, new_state)
+                    if username:
+                        _set_perm_state(app_id, username, new_state)
                     dbmod.set(key, "")
                     return True
             except (json.JSONDecodeError, TypeError):
@@ -355,22 +363,26 @@ def is_app_confirmed(app_id, permissions):
     return True
 
 
-def confirm_app(app_id, permissions):
+def confirm_app(app_id, permissions, username=None):
     state = {p: True for p in permissions}
-    _set_perm_state(app_id, state)
+    if username:
+        _set_perm_state(app_id, username, state)
+    _set_perm_state(app_id, None, state)
     return True
 
 
-def set_app_permission(app_id, permission, granted):
-    state = _get_perm_state(app_id)
+def set_app_permission(app_id, permission, granted, username=None):
+    if not username:
+        return False
+    state = _get_perm_state(app_id, username)
     state[permission] = granted
-    _set_perm_state(app_id, state)
+    _set_perm_state(app_id, username, state)
     return True
 
 
 # ── Execution ──
 
-def run_app(app_id):
+def run_app(app_id, username=None):
     app = get_app(app_id)
     if not app:
         return {'error': 'app not found'}
@@ -383,7 +395,7 @@ def run_app(app_id):
         return {'error': 'app_user_missing', 'app_user': APP_USER}
 
     # Permission confirmation check — skip if no permissions required
-    if app['permissions'] and not is_app_confirmed(app_id, app['permissions']):
+    if app['permissions'] and not is_app_confirmed(app_id, app['permissions'], username):
         return {'error': 'permission_required', 'permissions': app['permissions']}
 
     port = config.get('server', {}).get('port', 80)
@@ -404,7 +416,7 @@ def run_app(app_id):
 
     app_cwd = _APP_USER_HOME or app['path']
 
-    granted = _get_granted_permissions(app_id)
+    granted = _get_granted_permissions(app_id, username)
 
     try:
         proc = subprocess.Popen(
@@ -555,7 +567,7 @@ def _resolve_port(app_id, manifest_port):
     return None
 
 
-def start_web_app(app_id):
+def start_web_app(app_id, username=None):
     app = get_app(app_id)
     if not app:
         return {'error': 'app not found'}
@@ -583,7 +595,7 @@ def start_web_app(app_id):
         return {'error': f'max processes ({max_proc}) reached'}
 
     # Permission confirmation check — skip if no permissions required
-    if app['permissions'] and not is_app_confirmed(app_id, app['permissions']):
+    if app['permissions'] and not is_app_confirmed(app_id, app['permissions'], username):
         return {'error': 'permission_required', 'permissions': app['permissions']}
 
     srv_port = config.get('server', {}).get('port', 80)
@@ -605,7 +617,7 @@ def start_web_app(app_id):
 
     app_cwd = _APP_USER_HOME or app['path']
 
-    granted = _get_granted_permissions(app_id)
+    granted = _get_granted_permissions(app_id, username)
 
     try:
         proc = subprocess.Popen(
