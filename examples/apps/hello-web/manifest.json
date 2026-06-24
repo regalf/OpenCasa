@@ -9,5 +9,5 @@
   "autostart": false,
   "has_widget": false,
   "open_in": "tab",
-  "permissions": ["network:server", "files:read"]
+  "permissions": ["network:server"]
 }

@@ -9,5 +9,5 @@
   "autostart": false,
   "has_widget": true,
   "open_in": "iframe",
-  "permissions": ["network:server", "files:read"]
+  "permissions": ["network:server"]
 }

@@ -7,5 +7,5 @@
   "type": "widget",
   "autostart": false,
   "has_widget": true,
-  "permissions": ["system:monitor", "files:read", "system:exec"]
+  "permissions": ["system:monitor", "system:exec"]
 }
