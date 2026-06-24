@@ -120,11 +120,16 @@ body{
 .detail-section{margin:.8rem 0}
 .detail-actions{display:flex;gap:.5rem;align-items:center;margin:1rem 0;flex-wrap:wrap}
 .perm-list{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.3rem}
+.perm-toggle{opacity:1;transition:opacity .2s}
+.perm-toggle.perm-revoked{opacity:.55}
+.perm-toggle input[type=checkbox]{accent-color:#3b82f6;width:.9rem;height:.9rem;cursor:pointer}
+.perm-warning{color:#fbbf24;font-size:.7rem;font-style:italic}
 .perm-badge{
   display:inline-flex;align-items:center;line-height:1;
   font-size:.7rem;background:#334155;color:#94a3b8;
   padding:.15rem .5rem;border-radius:4px;font-family:monospace
 }
+.perm-badge.badge-danger{background:#7f1d1d;color:#fca5a5}
 .app-output{
   background:#0f172a;color:#e2e8f0;padding:.6rem;border-radius:6px;
   font-size:.8rem;max-height:200px;overflow:auto;margin-top:.3rem;white-space:pre-wrap

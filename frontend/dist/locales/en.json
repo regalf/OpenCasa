@@ -111,6 +111,7 @@
   "apps.perm_desc": "This app requests the following permissions:",
   "apps.perm_none": "No special permissions",
   "apps.perm_accept": "Run Anyway",
+  "apps.perm_may_fail": "Removing this permission may break app functionality",
 
   "apps.user_missing_title": "App user not found",
   "apps.user_missing_desc": "The system user 'opencasa' is required to run apps in a sandbox. Create it manually: doas useradd -m opencasa && doas passwd opencasa, then restart OpenCasa.",

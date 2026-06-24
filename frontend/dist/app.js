@@ -569,8 +569,12 @@ async function showAppDetail(id) {
   state.appOutput = null;
   state.appOutputLoading = true;
   render();
-  const res = await api('GET','/apps/' + encodeURIComponent(id));
-  state.appDetail = res.app || null;
+  const [appRes, permRes] = await Promise.all([
+    api('GET','/apps/' + encodeURIComponent(id)),
+    api('GET','/apps/' + encodeURIComponent(id) + '/permissions')
+  ]);
+  state.appDetail = appRes.app || null;
+  if (state.appDetail) state.appDetail.perm_state = permRes.permissions || {};
   state.appOutputLoading = false;
   render();
 }
@@ -598,6 +602,15 @@ async function saveAppDetail() {
     }
   }
   closeAppDetail();
+}
+
+async function toggleAppPerm(id, perm, granted) {
+  await api('POST', '/apps/' + encodeURIComponent(id) + '/permissions', {permission: perm, granted: granted});
+  if (state.appDetail && state.appDetail.id === id) {
+    state.appDetail.perm_state = state.appDetail.perm_state || {};
+    state.appDetail.perm_state[perm] = granted;
+    render();
+  }
 }
 
 async function runApp(id) {
@@ -1505,8 +1518,15 @@ function renderAppDetail(d) {
         ${d.permissions && d.permissions.length ? `
           <div class="detail-section">
             <strong>${t('apps.permissions')}:</strong>
-            <div class="perm-list">
-              ${d.permissions.map(p => `<span class="perm-badge">${escapeHtml(p)}</span>`).join('')}
+            <div class="perm-list" style="flex-direction:column;align-items:flex-start">
+              ${d.permissions.map(p => {
+                const granted = d.perm_state && d.perm_state[p] !== false;
+                return `<label class="perm-toggle ${granted ? '' : 'perm-revoked'}" style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.85rem;padding:.2rem 0">
+                  <input type="checkbox" ${granted ? 'checked' : ''} onchange="toggleAppPerm('${escapeHtml(d.id)}','${escapeHtml(p)}',this.checked)">
+                  <span class="perm-badge ${granted ? '' : 'badge-danger'}">${escapeHtml(p)}</span>
+                  ${!granted ? `<span class="perm-warning">${t('apps.perm_may_fail')}</span>` : ''}
+                </label>`;
+              }).join('')}
             </div>
           </div>` : ''}
         <div class="detail-section">

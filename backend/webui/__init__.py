@@ -357,7 +357,7 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
                 parts = rest.split("/", 1)
                 app_id = parts[0]
                 action = parts[1] if len(parts) > 1 else ""
-                from .appmanager import get_app, get_logs, get_widget_data
+                from .appmanager import get_app, get_logs, get_widget_data, get_permission_state
                 if not action:
                     from .appmanager import _safe_id
                     if not _safe_id(app_id):
@@ -366,6 +366,7 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
                     if not app:
                         return self._send_error(404, "app not found")
                     app["logs"] = get_logs(app_id, 5)
+                    app["perm_state"] = get_permission_state(app_id)
                     return self._send_json({"app": app})
                 if action == "logs":
                     return self._send_json({"logs": get_logs(app_id)})
@@ -374,6 +375,8 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
                     if data is None:
                         return self._send_json({"data": None})
                     return self._send_json({"data": data})
+                if action == "permissions":
+                    return self._send_json({"permissions": get_permission_state(app_id)})
 
         if path == "/api/v1/notifications":
             from .notifications import notifications, notif_lock
@@ -645,6 +648,13 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
                     from .appmanager import set_app_port
                     r = set_app_port(app_id, int(data["port"]))
                     return self._send_json(r)
+                if action == "permissions":
+                    data = self._json_body()
+                    if not data or "permission" not in data or "granted" not in data:
+                        return self._send_error(400, "missing permission or granted")
+                    from .appmanager import set_app_permission
+                    set_app_permission(app_id, data["permission"], data["granted"])
+                    return self._send_json({"success": True})
 
         if path == "/api/v1/notify":
             from .notifications import push_notification

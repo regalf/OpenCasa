@@ -262,24 +262,80 @@ def icon_path(app_id):
 
 # ── Permission confirmation ──
 
-def is_app_confirmed(app_id, permissions):
+def _get_perm_state(app_id):
     from . import database as dbmod
-    key = "_app_confirm:" + app_id
+    key = "_app_perm_state:" + app_id
     data = dbmod.get(key)
     if data:
         try:
-            confirmed = json.loads(data)
-            if confirmed.get("permissions") == permissions:
-                return True
+            return json.loads(data)
         except (json.JSONDecodeError, TypeError):
             pass
-    return False
+    return {}
+
+
+def _set_perm_state(app_id, state):
+    from . import database as dbmod
+    key = "_app_perm_state:" + app_id
+    dbmod.set(key, json.dumps(state))
+
+
+def get_permission_state(app_id):
+    state = _get_perm_state(app_id)
+    app = get_app(app_id)
+    if not app:
+        return {}
+    result = {}
+    for p in app['permissions']:
+        result[p] = state.get(p, True)
+    return result
+
+
+def _get_granted_permissions(app_id):
+    state = _get_perm_state(app_id)
+    if state:
+        return [p for p, g in state.items() if g]
+    app = get_app(app_id)
+    if app:
+        return app['permissions']
+    return []
+
+
+def is_app_confirmed(app_id, permissions):
+    if not permissions:
+        return True
+    state = _get_perm_state(app_id)
+    if not state:
+        from . import database as dbmod
+        key = "_app_confirm:" + app_id
+        data = dbmod.get(key)
+        if data:
+            try:
+                confirmed = json.loads(data)
+                if confirmed.get("permissions") == permissions:
+                    new_state = {p: True for p in permissions}
+                    _set_perm_state(app_id, new_state)
+                    dbmod.set(key, "")
+                    return True
+            except (json.JSONDecodeError, TypeError):
+                pass
+        return False
+    for p in permissions:
+        if p not in state:
+            return False
+    return True
 
 
 def confirm_app(app_id, permissions):
-    from . import database as dbmod
-    key = "_app_confirm:" + app_id
-    dbmod.set(key, json.dumps({"permissions": permissions, "confirmed_at": time.time()}))
+    state = {p: True for p in permissions}
+    _set_perm_state(app_id, state)
+    return True
+
+
+def set_app_permission(app_id, permission, granted):
+    state = _get_perm_state(app_id)
+    state[permission] = granted
+    _set_perm_state(app_id, state)
     return True
 
 
@@ -318,12 +374,14 @@ def run_app(app_id):
 
     app_cwd = _APP_USER_HOME or app['path']
 
+    granted = _get_granted_permissions(app_id)
+
     try:
         proc = subprocess.Popen(
             ['python3', ep],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             text=True, env=env, cwd=app_cwd,
-            preexec_fn=_make_preexec(app['permissions']),
+            preexec_fn=_make_preexec(granted),
         )
         try:
             stdout, stderr = proc.communicate(timeout=30)
@@ -516,12 +574,14 @@ def start_web_app(app_id):
 
     app_cwd = _APP_USER_HOME or app['path']
 
+    granted = _get_granted_permissions(app_id)
+
     try:
         proc = subprocess.Popen(
             ['python3', ep],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             env=env, cwd=app_cwd,
-            preexec_fn=_make_preexec(app['permissions']),
+            preexec_fn=_make_preexec(granted),
         )
         pid = proc.pid
         with _cache_lock:
