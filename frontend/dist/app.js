@@ -121,8 +121,8 @@ async function doSetup() {
       body: JSON.stringify({username: user, password: pass}),
     });
     if (!res.ok) {
-      const err = await res.json().catch(() => ({error: 'failed'}));
-      errEl.textContent = err.error || 'failed';
+      const err = await res.json().catch(() => ({error: t('error.failed')}));
+      errEl.textContent = err.error || t('error.failed');
       state.setupLoading = false; render();
       return;
     }
@@ -467,7 +467,7 @@ function toggleAccountModal() {
   const area = document.getElementById('acc-modal-area');
   if (area.firstChild) { closeAccountModal(); return; }
   const avatar = state.avatar || '';
-  const letter = (state.username[0] || '?').toUpperCase();
+  const letter = (state.username[0] || t('common.placeholder_initial')).toUpperCase();
   const d = document.createElement('div');
   d.id = 'acc-modal-wrapper';
   d.innerHTML = `
@@ -760,7 +760,7 @@ function installApp() {
       if (data.success) {
         state.installedMsg = t('apps.installed_ok').replace('%s', data.name || data.app_id);
       } else {
-        state.error = data.error || 'install failed';
+        state.error = data.error || t('apps.install_failed');
       }
     } catch(e) {
       state.error = e.message;
@@ -889,7 +889,7 @@ function renderAppTab(id) {
     return `
       <div class="app-tab-content" style="align-items:center;justify-content:center;padding:3rem;flex-direction:column;gap:1rem">
         <div class="loading-spinner"></div>
-        <p class="dim">${t('apps.starting')}...</p>
+        <p class="dim">${t('apps.starting')}${t('common.ellipsis')}</p>
       </div>
     `;
   }
@@ -997,7 +997,7 @@ function updateDashboardValues() {
     const pctEl = document.getElementById('mem-pct');
     if (barEl) barEl.style.width = memPct + '%';
     if (detEl) detEl.textContent = usedMem + ' / ' + totalMem + ' ' + memLabel;
-    if (pctEl) pctEl.textContent = memPct.toFixed(1) + '%';
+    if (pctEl) pctEl.textContent = memPct.toFixed(1) + t('dashboard.mem_percent');
   }
   if (st?.filesystems?.length) {
     const tbody = document.getElementById('stor-body');
@@ -1026,8 +1026,8 @@ function updateDashboardValues() {
         const txRate = (tx - state._prevNet.tx) / dt;
         const rxRateEl = document.getElementById('net-rx-rate');
         const txRateEl = document.getElementById('net-tx-rate');
-        if (rxRateEl) rxRateEl.textContent = '↓ ' + formatRate(rxRate);
-        if (txRateEl) txRateEl.textContent = '↑ ' + formatRate(txRate);
+        if (rxRateEl) rxRateEl.textContent = t('dashboard.network_down') + ' ' + formatRate(rxRate);
+        if (txRateEl) txRateEl.textContent = t('dashboard.network_up') + ' ' + formatRate(txRate);
       }
     }
     state._prevNet = {rx, tx, ts: now};
@@ -1067,16 +1067,16 @@ function joinPath(dir, name) {
   return dir.endsWith('/') ? dir + name : dir + '/' + name;
 }
 function formatBytes(b) {
-  if (b >= 1073741824) return (b / 1073741824).toFixed(1) + ' GB';
-  if (b >= 1048576) return (b / 1048576).toFixed(1) + ' MB';
-  if (b >= 1024) return (b / 1024).toFixed(1) + ' KB';
-  return b + ' B';
+  if (b >= 1073741824) return (b / 1073741824).toFixed(1) + ' ' + t('files.gigabytes');
+  if (b >= 1048576) return (b / 1048576).toFixed(1) + ' ' + t('files.megabytes');
+  if (b >= 1024) return (b / 1024).toFixed(1) + ' ' + t('files.kilobytes');
+  return b + ' ' + t('files.bytes');
 }
 function formatRate(bps) {
-  if (bps >= 1073741824) return (bps / 1073741824).toFixed(2) + ' GB/s';
-  if (bps >= 1048576) return (bps / 1048576).toFixed(2) + ' MB/s';
-  if (bps >= 1024) return (bps / 1024).toFixed(1) + ' KB/s';
-  return bps.toFixed(1) + ' B/s';
+  if (bps >= 1073741824) return (bps / 1073741824).toFixed(2) + ' ' + t('files.rate_gigabytes');
+  if (bps >= 1048576) return (bps / 1048576).toFixed(2) + ' ' + t('files.rate_megabytes');
+  if (bps >= 1024) return (bps / 1024).toFixed(1) + ' ' + t('files.rate_kilobytes');
+  return bps.toFixed(1) + ' ' + t('files.rate_bytes');
 }
 const DANGEROUS_PATHS = ['/', '/etc', '/usr', '/var', '/sys', '/proc', '/dev', '/boot', '/root', '/bin', '/sbin', '/lib', '/lib64'];
 function isDangerousPath(p) {
@@ -1151,14 +1151,14 @@ function render() {
       <hr class="sidebar-sep">
       ${webApps.map(a => `
         <button class="${state.view==='app' && state.appViewId===a.id ? 'active' : ''}" onclick="navigateApp('${escapeHtml(a.id)}')">
-          <span class="sidebar-app-letter">${escapeHtml(a.name[0] || '?')}</span>
+          <span class="sidebar-app-letter">${escapeHtml(a.name[0] || t('common.placeholder_initial'))}</span>
           ${escapeHtml(a.name)}
         </button>
       `).join('')}
       ` : ''}
       <div class="spacer"></div>
       <button class="sidebar-user" onclick="toggleAccountModal()">
-        ${state.avatar ? `<img class="sidebar-user-avatar" src="${escapeHtml(state.avatar)}" alt="" />` : `<span class="sidebar-user-avatar" style="background:${getAvatarColor(state.username)}">${escapeHtml(state.username[0]||'?').toUpperCase()}</span>`}
+        ${state.avatar ? `<img class="sidebar-user-avatar" src="${escapeHtml(state.avatar)}" alt="" />` : `<span class="sidebar-user-avatar" style="background:${getAvatarColor(state.username)}">${escapeHtml(state.username[0]||t('common.placeholder_initial')).toUpperCase()}</span>`}
         <span class="sidebar-user-name">${escapeHtml(state.username)}</span>
       </button>
       <div id="acc-modal-area"></div>
@@ -1186,7 +1186,7 @@ function renderSetup() {
         </div>
         <p class="login-error" id="setup-error"></p>
         <button onclick="doSetup()" ${state.setupLoading ? 'disabled' : ''}>
-          ${state.setupLoading ? t('setup.creating') + '...' : t('setup.create')}
+          ${state.setupLoading ? t('setup.creating') + t('common.ellipsis') : t('setup.create')}
         </button>
       </div>
     </div>
@@ -1208,7 +1208,7 @@ function renderLogin() {
     `;
   }
   const avatar = state.loginAvatar || '';
-  const letter = (state.loginUser || '?')[0].toUpperCase();
+  const letter = (state.loginUser || t('common.placeholder_initial'))[0].toUpperCase();
   return `
     <div class="login-screen">
       <div class="login-card" style="text-align:center">
@@ -1313,7 +1313,7 @@ function renderDashboard() {
                 <div class="app-card" onclick="openApp('${escapeHtml(app.id)}','${app.type}','${app.status}','${app.open_in||'iframe'}')" style="cursor:pointer">
                   <button class="app-card-menu" onclick="event.stopPropagation();showAppDetail('${escapeHtml(app.id)}')">⋮</button>
                   ${app.icon ? `<img class="app-card-icon" src="/api/v1/apps/${encodeURIComponent(app.id)}/icon" alt="" onerror="this.style.display='none'"/>` : ''}
-                  <div class="app-card-icon-placeholder" style="${app.icon ? 'display:none' : ''}">${escapeHtml(app.name[0] || '?')}</div>
+                  <div class="app-card-icon-placeholder" style="${app.icon ? 'display:none' : ''}">${escapeHtml(app.name[0] || t('common.placeholder_initial'))}</div>
                   <span class="app-card-name">${escapeHtml(app.name)}</span>
                   ${app.status === 'running' ? `<span class="app-card-status running">● ${t('apps.running')}</span>` : ''}
                 </div>`).join('')}
@@ -1441,7 +1441,7 @@ function renderFileManager() {
                 : `📄 ${escapeHtml(e.name)}`
               }
             </td>
-            <td>${e.is_dir ? '—' : (e.size < 1024 ? e.size + ' ' + t('files.bytes') : (e.size/1024).toFixed(1) + ' ' + t('files.kilobytes'))}</td>
+            <td>${e.is_dir ? t('common.na') : (e.size < 1024 ? e.size + ' ' + t('files.bytes') : (e.size/1024).toFixed(1) + ' ' + t('files.kilobytes'))}</td>
             <td>${escapeHtml(e.mod_time)}</td>
             <td class="file-actions">
               ${!e.is_dir ? `
@@ -1477,7 +1477,7 @@ function renderAppManager() {
           <div class="app-card" onclick="openApp('${escapeHtml(app.id)}','${app.type}','${app.status}','${app.open_in||'iframe'}')">
             <button class="app-card-menu" onclick="event.stopPropagation();showAppDetail('${escapeHtml(app.id)}')">⋮</button>
             ${app.icon ? `<img class="app-card-icon" src="/api/v1/apps/${encodeURIComponent(app.id)}/icon" alt="" onerror="this.style.display='none'"/>` : ''}
-            <div class="app-card-icon-placeholder" style="${app.icon ? 'display:none' : ''}">${escapeHtml(app.name[0] || '?')}</div>
+            <div class="app-card-icon-placeholder" style="${app.icon ? 'display:none' : ''}">${escapeHtml(app.name[0] || t('common.placeholder_initial'))}</div>
             <span class="app-card-name">${escapeHtml(app.name)}</span>
             ${app.status === 'running' ? `<span class="app-card-status running">● ${t('apps.running')}</span>` : ''}
           </div>`).join('')}
@@ -1495,7 +1495,7 @@ function renderAppDetail(d) {
         <div class="detail-header">
           <div>
             <h2>${escapeHtml(d.name)}</h2>
-            <span class="dim" style="font-size:.85rem">${escapeHtml(d.id)} v${escapeHtml(d.version)}</span>
+            <span class="dim" style="font-size:.85rem">${escapeHtml(d.id)} ${t('apps.version_prefix')}${escapeHtml(d.version)}</span>
           </div>
           <div style="display:flex;gap:.5rem">
             <button class="btn btn-success" onclick="saveAppDetail()">${t('apps.save')}</button>
@@ -1507,10 +1507,10 @@ function renderAppDetail(d) {
         <div class="detail-section">
           <strong>${t('apps.type')}:</strong> ${d.type}
           ${d.type === 'web' ? `
-            <span style="margin-left:1rem;color:#64748b">port</span>
+            <span style="margin-left:1rem;color:#64748b">${t('apps.port')}</span>
             <select id="app-port-select" style="background:#1e293b;color:#f1f5f9;border:1px solid #334155;border-radius:4px;font-size:.85rem;padding:.15rem .3rem;margin-left:.3rem">
               ${(state.portPool || []).map(p => `
-                <option value="${p}" ${(d.port == p) ? 'selected' : ''} ${(state.usedPorts || []).includes(p) && d.port != p ? 'disabled' : ''}>${p}${(state.usedPorts || []).includes(p) && d.port != p ? ' (in use)' : ''}</option>
+                <option value="${p}" ${(d.port == p) ? 'selected' : ''} ${(state.usedPorts || []).includes(p) && d.port != p ? 'disabled' : ''}>${p}${(state.usedPorts || []).includes(p) && d.port != p ? ' ' + t('apps.port_in_use') : ''}</option>
               `).join('')}
             </select>
           ` : ''}
@@ -1550,7 +1550,7 @@ function renderAppDetail(d) {
         <div class="detail-actions">
           ${d.type === 'tool' || d.type === 'widget' ? `
             <button class="btn btn-success" onclick="runApp('${escapeHtml(d.id)}')" ${state.appOutputLoading ? 'disabled' : ''}>
-              ${state.appOutputLoading ? t('apps.running') + '...' : t('apps.run')}
+              ${state.appOutputLoading ? t('apps.running') + t('common.ellipsis') : t('apps.run')}
             </button>` : ''}
           ${d.type === 'web' ? `
             ${d.status === 'running'
@@ -1564,15 +1564,15 @@ function renderAppDetail(d) {
           <div class="detail-section">
             <strong>${t('apps.output')}</strong>
             ${state.appOutput.error ? `<p style="color:#f87171">${escapeHtml(state.appOutput.error)}</p>` : `
-              <pre class="app-output">${escapeHtml(state.appOutput.stdout || '')}${state.appOutput.stderr ? '\n--- stderr ---\n' + escapeHtml(state.appOutput.stderr) : ''}${state.appOutput.returncode !== 0 ? '\n' + t('apps.exit_code') + ': ' + state.appOutput.returncode : ''}</pre>`}
-          </div>` : state.appOutputLoading ? `<p class="dim">${t('apps.running')}...</p>` : ''}
+              <pre class="app-output">${escapeHtml(state.appOutput.stdout || '')}${state.appOutput.stderr ? '\n' + t('apps.stderr_header') + '\n' + escapeHtml(state.appOutput.stderr) : ''}${state.appOutput.returncode !== 0 ? '\n' + t('apps.exit_code') + ': ' + state.appOutput.returncode : ''}</pre>`}
+          </div>` : state.appOutputLoading ? `<p class="dim">${t('apps.running')}${t('common.ellipsis')}</p>` : ''}
         ${d.logs && d.logs.length ? `
           <div class="detail-section">
             <strong>${t('apps.recent_logs')}</strong>
             ${d.logs.slice().reverse().map(log => `
               <div class="log-entry">
                 <span class="log-time">${escapeHtml(log.timestamp)}</span>
-                <span class="log-rc ${log.returncode === 0 ? 'ok' : 'fail'}">exit ${log.returncode}</span>
+                <span class="log-rc ${log.returncode === 0 ? 'ok' : 'fail'}">${t('apps.exit_prefix')} ${log.returncode}</span>
                 <pre class="log-output">${escapeHtml((log.stdout || '').substring(0, 200))}</pre>
               </div>`).join('')}
           </div>` : ''}
@@ -1606,7 +1606,7 @@ function renderControlPanel() {
             <tr>
               <td>${escapeHtml(u.username)}</td>
               <td>${escapeHtml(u.role)}</td>
-              <td>${u.created ? new Date(u.created*1000).toLocaleDateString() : '—'}</td>
+              <td>${u.created ? new Date(u.created*1000).toLocaleDateString() : t('common.na')}</td>
               <td>
                 ${state.username !== u.username ? `<button class="btn btn-danger" onclick="deleteUser('${escapeHtml(u.username)}')">${t('cp.delete')}</button>` : `<span class="dim">${t('cp.you')}</span>`}
               </td>

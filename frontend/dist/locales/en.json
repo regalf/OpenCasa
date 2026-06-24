@@ -157,5 +157,28 @@
   "auth.incorrect_password": "Incorrect password",
   "auth.recovery_title": "Set New Root Password",
   "auth.recovery_desc": "Verification passed. Choose a new root password to secure the system.",
-  "auth.new_root_password": "New root password"
+  "auth.new_root_password": "New root password",
+
+  "common.ellipsis": "...",
+  "common.placeholder_initial": "?",
+  "common.na": "—",
+
+  "error.failed": "Failed",
+
+  "apps.install_failed": "Install failed",
+  "apps.version_prefix": "v",
+  "apps.port_in_use": "(in use)",
+  "apps.stderr_header": "--- stderr ---",
+  "apps.exit_prefix": "exit",
+
+  "dashboard.mem_percent": "%",
+  "dashboard.network_down": "\u2193",
+  "dashboard.network_up": "\u2191",
+
+  "files.megabytes": "MB",
+  "files.gigabytes": "GB",
+  "files.rate_bytes": "B/s",
+  "files.rate_kilobytes": "KB/s",
+  "files.rate_megabytes": "MB/s",
+  "files.rate_gigabytes": "GB/s"
 }

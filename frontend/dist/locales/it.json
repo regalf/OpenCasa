@@ -157,5 +157,28 @@
   "auth.incorrect_password": "Password errata",
   "auth.recovery_title": "Imposta Nuova Password Root",
   "auth.recovery_desc": "Verifica superata. Scegli una nuova password per proteggere il sistema.",
-  "auth.new_root_password": "Nuova password root"
+  "auth.new_root_password": "Nuova password root",
+
+  "common.ellipsis": "...",
+  "common.placeholder_initial": "?",
+  "common.na": "—",
+
+  "error.failed": "Fallito",
+
+  "apps.install_failed": "Installazione fallita",
+  "apps.version_prefix": "v",
+  "apps.port_in_use": "(in uso)",
+  "apps.stderr_header": "--- stderr ---",
+  "apps.exit_prefix": "uscita",
+
+  "dashboard.mem_percent": "%",
+  "dashboard.network_down": "\u2193",
+  "dashboard.network_up": "\u2191",
+
+  "files.megabytes": "MB",
+  "files.gigabytes": "GB",
+  "files.rate_bytes": "B/s",
+  "files.rate_kilobytes": "KB/s",
+  "files.rate_megabytes": "MB/s",
+  "files.rate_gigabytes": "GB/s"
 }
