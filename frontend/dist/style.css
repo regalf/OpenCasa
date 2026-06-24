@@ -298,15 +298,15 @@ body{
 /* ── Notification Panel — slides from left, anchored to bell button ── */
 .notif-wrap{position:relative}
 .notif-panel{
-  position:absolute;left:100%;bottom:0;width:380px;
+  position:absolute;left:100%;top:0;width:380px;
   background:#1e293b;border:1px solid #334155;border-left:none;
-  animation:slideLeft .2s ease;
+  animation:slideFromEdge .2s ease;
   display:flex;flex-direction:column;
   border-radius:0 10px 10px 0;
   box-shadow:4px 4px 20px rgba(0,0,0,.4);
-  max-height:360px
+  max-height:360px;z-index:100
 }
-@keyframes slideLeft{from{transform:translateX(-100%)}to{transform:translateX(0)}}
+@keyframes slideFromEdge{from{transform:translateX(-12px);opacity:0}to{transform:translateX(0);opacity:1}}
 .notif-panel-header{
   display:flex;align-items:center;justify-content:space-between;
   padding:.65rem .85rem;border-bottom:1px solid #334155;flex-shrink:0
