@@ -164,13 +164,15 @@ Apps declare required permissions in their manifest. Before first run, the user 
 
 ### App User
 
-Apps are designed to run as an unprivileged system user (`app_user`, default `opencasa`) for sandboxing. The backend drops privileges via `os.setuid()`/`os.setgid()` on Linux, and via `pwd.getpwnam()` + `os.setgid()`/`os.setuid()` on OpenBSD.
+Apps are designed to run as an unprivileged system user (`app_user`, default `opencasa`) for sandboxing. This user must exist in the OS — it is **not** auto-created by OpenCasa. The password is managed entirely by the OS via `passwd`.
 
 Create the app user manually:
 ```sh
 doas useradd -m opencasa
 doas passwd opencasa
 ```
+
+The install script (`scripts/install.sh`) can also create this user interactively and prompt for a password.
 
 If the user is missing, the Apps tab shows a warning banner and app execution is blocked.
 

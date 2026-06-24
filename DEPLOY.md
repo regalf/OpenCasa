@@ -1,9 +1,9 @@
-# Deploy su OpenBSD/macppc
+# Deploy on OpenBSD/macppc
 
-## File necessari (solo questi 4)
+## Required files
 
-| File | Destino sul Mac |
-|------|----------------|
+| File | Destination |
+|------|-------------|
 | `backend/webui.py` | `/usr/local/webui/webui.py` |
 | `backend/webui/*.py` | `/usr/local/webui/webui/*.py` |
 | `frontend/dist/index.html` | `/usr/local/webui/index.html` |
@@ -11,25 +11,25 @@
 | `frontend/dist/app.js` | `/usr/local/webui/app.js` |
 | `frontend/dist/favicon.svg` | `/usr/local/webui/favicon.svg` |
 | `frontend/dist/locales/` | `/usr/local/webui/locales/` |
-| `opencasa.json.example` | `/etc/opencasa.json` (rinominato) |
+| `opencasa.json.example` | `/etc/opencasa.json` (rename) |
 | `scripts/webui` | `/etc/rc.d/webui` |
 
-## Metodo 1 — Via SCP (consigliato)
+## Method 1 — SCP (recommended)
 
-Dalla macchina di sviluppo (questa):
+From your development machine:
 ```sh
-scp backend/webui.py utente@mac:~/
-scp -r backend/webui utente@mac:~/webui_pkg/
-scp frontend/dist/index.html utente@mac:~/
-scp frontend/dist/style.css utente@mac:~/
-scp frontend/dist/app.js utente@mac:~/
-scp frontend/dist/favicon.svg utente@mac:~/
-scp -r frontend/dist/locales utente@mac:~/
-scp opencasa.json.example utente@mac:~/
-scp scripts/webui utente@mac:~/
+scp backend/webui.py user@mac:~/
+scp -r backend/webui user@mac:~/webui_pkg/
+scp frontend/dist/index.html user@mac:~/
+scp frontend/dist/style.css user@mac:~/
+scp frontend/dist/app.js user@mac:~/
+scp frontend/dist/favicon.svg user@mac:~/
+scp -r frontend/dist/locales user@mac:~/
+scp opencasa.json.example user@mac:~/
+scp scripts/webui user@mac:~/
 ```
 
-Poi su OpenBSD:
+Then on OpenBSD:
 ```sh
 doas mkdir -p /usr/local/webui/apps
 doas mv webui.py /usr/local/webui/
@@ -42,9 +42,9 @@ doas chmod +x /etc/rc.d/webui
 doas mv opencasa.json.example /etc/opencasa.json
 ```
 
-## Metodo 2 — Via chiavetta USB
+## Method 2 — USB drive
 
-Se il Mac non ha rete, monta una USB e copia:
+If the Mac has no network, mount a USB drive and copy:
 ```sh
 doas mount /dev/sd0i /mnt
 doas mkdir -p /usr/local/webui/apps
@@ -58,75 +58,122 @@ doas chmod +x /etc/rc.d/webui
 doas cp /mnt/opencasa.json.example /etc/opencasa.json
 ```
 
-## Metodo 3 — Download diretto (se il Mac ha rete)
+## Method 3 — Direct download (if the Mac has network)
 
 ```sh
-# Se hai un server HTTP con i file
 doas mkdir -p /usr/local/webui/apps /usr/local/webui/webui
-ftp -o /usr/local/webui/webui.py http://tua-macchina/webui.py
-ftp -o /usr/local/webui/index.html http://tua-macchina/index.html
-ftp -o /usr/local/webui/style.css http://tua-macchina/style.css
-ftp -o /usr/local/webui/app.js http://tua-macchina/app.js
-ftp -o /usr/local/webui/favicon.svg http://tua-macchina/favicon.svg
-# Scaricare ogni file .py in /usr/local/webui/webui/
-# (oppure tar -czf webui.tgz backend/webui/ e ftp + tar -xz su OpenBSD)
+ftp -o /usr/local/webui/webui.py http://your-machine/webui.py
+ftp -o /usr/local/webui/index.html http://your-machine/index.html
+ftp -o /usr/local/webui/style.css http://your-machine/style.css
+ftp -o /usr/local/webui/app.js http://your-machine/app.js
+ftp -o /usr/local/webui/favicon.svg http://your-machine/favicon.svg
+# Download each .py file into /usr/local/webui/webui/
+# (or tar -czf webui.tgz backend/webui/ and ftp + tar -xz on OpenBSD)
 ```
 
-## Configurazione
+## Quick install (recommended)
 
 ```sh
-# Genera un segreto JWT
+curl -s https://raw.githubusercontent.com/regalf/OpenCasa/main/scripts/install.sh | doas sh
+```
+
+This automates all the steps above.
+
+## Configuration
+
+```sh
+# Generate a JWT secret
 openssl rand -hex 32
 
-# Aprilo e incollalo in jwt_secret
+# Open the config and paste it into jwt_secret
 doas vi /etc/opencasa.json
 ```
 
-Il file `/etc/opencasa.json`:
+The file `/etc/opencasa.json`:
 ```json
 {
   "server": {"host": "0.0.0.0", "port": 80},
   "auth": {
     "enabled": true,
-    "jwt_secret": "il-segreto-generato-sopra",
+    "jwt_secret": "your-generated-secret",
     "session_ttl": "24h"
   },
   "filesystem": {
-    "allowed_prefixes": ["/home", "/var/www", "/mnt", "/tmp"],
+    "allowed_prefixes": ["/home/opencasa"],
     "max_upload_size": 100
   },
   "log": {"level": "info", "file": "/var/log/webui.log"},
+  "app_user": "opencasa",
   "apps_autostart": true
 }
 ```
 
-## Python su OpenBSD
+### App user
+
+Create the unprivileged user for running apps (if the install script didn't do it):
+```sh
+doas useradd -m opencasa
+doas passwd opencasa   # optional, set a password
+```
+
+## Python on OpenBSD
 
 ```sh
-# Verifica se c'è già (base system)
+# Check if Python is already installed (base system may include it)
 python3 --version
 
-# Se non c'è, installalo
+# If not, install it
 doas pkg_add python
 ```
 
-## Avvio
+## TLS / HTTPS
+
+OpenCasa does not provide HTTPS directly. For production use, terminate TLS with a reverse proxy:
+
+**nginx example:**
+```nginx
+server {
+    listen 443 ssl;
+    server_name your-domain.example.com;
+    ssl_certificate /etc/ssl/cert.pem;
+    ssl_certificate_key /etc/ssl/private/key.pem;
+    location / {
+        proxy_pass http://127.0.0.1:80;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+}
+```
+
+**httpd(8) example (OpenBSD):**
+```
+server "your-domain.example.com" {
+    listen on * port 443 tls
+    tls certificate "/etc/ssl/cert.pem"
+    tls key "/etc/ssl/private/key.pem"
+    location "/*" {
+        proxy http://127.0.0.1 port 80
+    }
+}
+```
+
+## Startup
 
 ```sh
 doas rcctl enable webui
 doas rcctl start webui
 
-# Stato
+# Status
 doas rcctl status webui
 
-# Log
+# Logs
 doas tail -f /var/log/webui.log
 ```
 
-Apri browser su: `http://IP-DEL-MAC`
-Credenziali: `admin` / `admin`
+Open a browser at: `http://IP-OF-MAC`
+Default credentials: `admin` / `admin`
 
-## Test rapido
+## Quick test
 
 ```sh
 curl http://localhost/                          # frontend

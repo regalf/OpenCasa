@@ -183,7 +183,7 @@ def _make_preexec(permissions, app_dir=None):
 
 
 def _safe_id(name):
-    return all(c.isalnum() or c in '-_' for c in name)
+    return bool(name) and all(c.isalnum() or c in '-_' for c in name)
 
 
 def scan_all():
@@ -372,11 +372,11 @@ def confirm_app(app_id, permissions, username=None):
 
 
 def set_app_permission(app_id, permission, granted, username=None):
-    if not username:
-        return False
     state = _get_perm_state(app_id, username)
     state[permission] = granted
-    _set_perm_state(app_id, username, state)
+    if username:
+        _set_perm_state(app_id, username, state)
+    _set_perm_state(app_id, None, state)
     return True
 
 

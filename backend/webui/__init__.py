@@ -39,9 +39,10 @@ DEFAULT_CONFIG = {
     "log": {"level": "info", "file": "/var/log/webui.log", "max_size": 5242880, "backup_count": 3},
     "apps_autostart": True,
     "app_user": "opencasa",
-    "app_password": "123456",
     "apps": {"max_processes": 10, "ports": {}, "port_pool": [19000,19001,19002,19003,19004,19005,19006,19007,19008,19009]},
 }
+
+__version__ = "1.0.0"
 
 import copy
 config = copy.deepcopy(DEFAULT_CONFIG)

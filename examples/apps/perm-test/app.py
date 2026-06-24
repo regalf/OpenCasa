@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Permission Test app — verifies each permission works at the OS level."""
-import http.server, json, os, subprocess, socket, urllib.request, sysconfig, tempfile, platform, mimetypes
+import http.server, json, os, subprocess, socket, sysconfig, tempfile, platform, mimetypes
 from datetime import datetime
 
 HOST = '127.0.0.1'
@@ -10,13 +10,15 @@ HOME = os.environ.get('HOME', '/home/opencasa')
 TEST_FILE = os.path.join(HOME, '.opencasa_perm_test')
 
 def _test_network_client():
-    try:
-        req = urllib.request.Request('https://httpbin.org/ip', method='GET')
-        with urllib.request.urlopen(req, timeout=10) as r:
-            data = json.loads(r.read())
-        return {'ok': True, 'detail': f'IP: {data.get("origin", "ok")}'}
-    except Exception as e:
-        return {'ok': False, 'detail': str(e)[:120]}
+    targets = [('1.1.1.1', 443), ('8.8.8.8', 443)]
+    for host, port in targets:
+        try:
+            s = socket.create_connection((host, port), timeout=10)
+            s.close()
+            return {'ok': True, 'detail': f'TCP connect to {host}:{port} OK'}
+        except Exception:
+            continue
+    return {'ok': False, 'detail': 'Could not connect to 1.1.1.1:443 or 8.8.8.8:443'}
 
 def _test_network_server():
     try:
