@@ -1,0 +1,13 @@
+{
+  "name": "Permission Test",
+  "description": "Interactive test suite to verify each permission works — toggle permissions in the app detail modal and re-run tests",
+  "version": "1.0.0",
+  "author": "OpenCasa",
+  "entry": "app.py",
+  "type": "web",
+  "port": 18996,
+  "autostart": false,
+  "has_widget": false,
+  "open_in": "tab",
+  "permissions": ["network:client", "network:server", "files:read", "files:write", "system:exec", "system:monitor"]
+}
