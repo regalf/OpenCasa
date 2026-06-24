@@ -1140,7 +1140,9 @@ function render() {
   const webApps = state.apps.filter(a => a.type === 'web' && a.open_in !== 'tab');
   const appTabId = state.view === 'app' ? state.appViewId : null;
   app.innerHTML = `
+    <button class="hamburger" onclick="toggleSidebar()">☰</button>
     <nav class="sidebar" id="sidebar">
+      <div class="brand">${t('app.brand')}</div>
       <button class="${state.view==='dashboard'?'active':''}" onclick="navigate('dashboard')">${t('nav.dashboard')}</button>
       <button class="${state.view==='files'?'active':''}" onclick="navigate('files')">${t('nav.files')}</button>
       <button class="${state.view==='apps'?'active':''}" onclick="navigate('apps')">${t('nav.apps')}</button>
@@ -1157,6 +1159,10 @@ function render() {
       `).join('')}
       ` : ''}
       <div class="spacer"></div>
+      <button class="sidebar-notif-btn" onclick="toggleNotifPanel()">
+        🔔<span class="notif-badge" id="notif-count"></span>
+        <span>${t('notif.title')}</span>
+      </button>
       <button class="sidebar-user" onclick="toggleAccountModal()">
         ${state.avatar ? `<img class="sidebar-user-avatar" src="${escapeHtml(state.avatar)}" alt="" />` : `<span class="sidebar-user-avatar" style="background:${getAvatarColor(state.username)}">${escapeHtml(state.username[0]||t('common.placeholder_initial')).toUpperCase()}</span>`}
         <span class="sidebar-user-name">${escapeHtml(state.username)}</span>
@@ -1164,21 +1170,13 @@ function render() {
       <div id="acc-modal-area"></div>
     </nav>
     <section class="content">
-      <div class="topbar">
-        <button class="hamburger" onclick="toggleSidebar()">☰</button>
-        <span class="topbar-brand" onclick="navigate('dashboard')">${t('app.brand')}</span>
-        <div class="topbar-spacer"></div>
-        <button class="notif-bell" onclick="toggleNotifPanel()">
-          🔔<span class="notif-badge" id="notif-count"></span>
-        </button>
-      </div>
       ${state.view === 'dashboard' ? renderDashboard() : ''}
       ${state.view === 'files' ? renderFileManager() : ''}
       ${state.view === 'apps' ? renderAppManager() : ''}
       ${state.view === 'controlpanel' ? renderControlPanel() : ''}
       ${appTabId ? renderAppTab(appTabId) : ''}
-      ${state.notifPanelOpen ? renderNotifPanel() : ''}
     </section>
+    ${state.notifPanelOpen ? renderNotifPanel() : ''}
   `;
   updateNotifBadge();
 }
