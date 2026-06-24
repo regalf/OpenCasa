@@ -1,7 +1,7 @@
 {
   "name": "Calendar",
   "description": "Date, time, and monthly calendar — web app with dashboard widget",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "author": "OpenCasa",
   "entry": "app.py",
   "type": "web",
@@ -9,5 +9,5 @@
   "autostart": false,
   "has_widget": true,
   "open_in": "iframe",
-  "permissions": []
+  "permissions": ["network:server", "files:read"]
 }

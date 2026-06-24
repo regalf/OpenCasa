@@ -1,7 +1,7 @@
 {
   "name": "Disk Usage",
-  "description": "Show disk usage for all mounted filesystems",
-  "version": "1.0.0",
+  "description": "Show disk usage for all mounted filesystems — uses shutil.disk_usage",
+  "version": "1.1.0",
   "author": "OpenCasa",
   "entry": "app.py",
   "type": "tool",

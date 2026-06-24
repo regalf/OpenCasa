@@ -77,6 +77,8 @@ def _compute_pledge_promises(permissions):
     has_client = 'network:client' in permissions
     has_server = 'network:server' in permissions
     has_exec = 'system:exec' in permissions
+    has_fread = 'files:read' in permissions
+    has_fwrite = 'files:write' in permissions
 
     promises = ['stdio']
 
@@ -87,6 +89,12 @@ def _compute_pledge_promises(permissions):
 
     if has_exec:
         promises.extend(['proc', 'exec'])
+
+    if has_fread:
+        promises.append('rpath')
+    if has_fwrite:
+        promises.append('wpath')
+        promises.append('cpath')
 
     seen = set()
     return ' '.join(p for p in promises if not (p in seen or seen.add(p)))
