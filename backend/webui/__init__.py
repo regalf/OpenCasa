@@ -566,6 +566,10 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
             from .filemanager import handle_upload
             return handle_upload(self, params)
 
+        if path == "/api/v1/files/toggle-pin":
+            from .filemanager import handle_toggle_pin
+            return handle_toggle_pin(self)
+
         if path == "/api/v1/disks/mount":
             from .system import mount_fs
             data = self._json_body()
