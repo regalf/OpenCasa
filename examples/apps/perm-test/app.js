@@ -16,7 +16,7 @@ async function runTest(test) {
   const card = $(test.id);
   if (card) card.className = 'test-card running';
   try {
-    const res = await fetch('/api/test/' + test.id);
+    const res = await fetch('api/test/' + test.id);
     const data = await res.json();
     state.results[test.id] = data;
     renderCard(test, data);
