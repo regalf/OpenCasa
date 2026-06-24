@@ -150,9 +150,6 @@ Web apps receive `OPENCASA_ACTION=widget` when polled for widget data (output JS
 
 | App | Type | Description |
 |-----|------|-------------|
-| `system-monitor` | `widget` | Real-time CPU and memory dashboard widget |
-| `hello-world` | `tool` | Prints system info on demand |
-| `disk-usage` | `tool` | Shows disk usage for all mountpoints |
 | `calendar` | `web` (port 18997) | Full calendar web app with dashboard widget support |
 | `hello-web` | `web` (port 18998) | Minimal test web app |
 

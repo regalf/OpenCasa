@@ -311,7 +311,7 @@ fetch_source
 trap cleanup EXIT
 
 printf "\n${BOLD}Example apps${NC}\n"
-printf "  OpenCasa ships with example apps (calendar, system monitor, hello-world, ...)\n"
+printf "  OpenCasa ships with example apps (calendar, hello-web, perm-test, notify-test, ...)\n"
 if prompt_yes "Install example apps to ${DEST_DIR}/apps/?"; then
   INSTALL_EXAMPLES="yes"
 fi

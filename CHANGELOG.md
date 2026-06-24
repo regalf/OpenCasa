@@ -40,7 +40,6 @@ Initial release of OpenCasa — a lightweight server management panel for old ha
 - `whoami` — tool app verifying sandbox user
 - `perm-test` — web app testing all 6 permission types
 - `notify-test` — web app demonstrating notification API
-- `system-monitor` — tool app for system monitoring
 
 ### Supported Platforms
 
