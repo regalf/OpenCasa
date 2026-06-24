@@ -72,6 +72,48 @@ def app_user_ready():
     return _APP_USER_UID is not None
 
 
+def _compute_pledge_promises(permissions):
+    """Compute pledge(2) promises string from permission list."""
+    has_client = 'network:client' in permissions
+    has_server = 'network:server' in permissions
+    has_exec = 'system:exec' in permissions
+
+    promises = ['stdio']
+
+    if has_client:
+        promises.extend(['inet', 'dns'])
+    elif has_server:
+        promises.append('inet')
+
+    if has_exec:
+        promises.extend(['proc', 'exec'])
+
+    seen = set()
+    return ' '.join(p for p in promises if not (p in seen or seen.add(p)))
+
+
+def _needs_network(permissions):
+    return 'network:client' in permissions or 'network:server' in permissions
+
+
+def _enforce_permissions(permissions):
+    """Apply OS-level permission enforcement (pledge on OpenBSD, unshare on Linux)."""
+    if hasattr(os, 'pledge'):
+        try:
+            os.pledge(_compute_pledge_promises(permissions))
+        except OSError:
+            pass
+
+    if not _needs_network(permissions):
+        try:
+            import ctypes
+            libc = ctypes.CDLL('libc.so.6', use_errno=True)
+            CLONE_NEWNET = 0x40000000
+            libc.unshare(CLONE_NEWNET)
+        except Exception:
+            pass
+
+
 def _set_resource_limits():
     import resource
     try:
@@ -90,21 +132,25 @@ def _set_resource_limits():
             pass
 
 
-def _app_preexec():
-    try:
-        if _APP_USER_UID is not None and _APP_USER_GID is not None:
-            if hasattr(os, 'initgroups'):
-                try: os.initgroups(APP_USER, _APP_USER_GID)
+def _make_preexec(permissions):
+    """Create a preexec_fn closure that drops privileges and enforces permissions."""
+    def preexec():
+        try:
+            if _APP_USER_UID is not None and _APP_USER_GID is not None:
+                if hasattr(os, 'initgroups'):
+                    try: os.initgroups(APP_USER, _APP_USER_GID)
+                    except Exception: pass
+                try: os.setgid(_APP_USER_GID)
                 except Exception: pass
-            try: os.setgid(_APP_USER_GID)
+                try: os.setuid(_APP_USER_UID)
+                except Exception: pass
+            try: os.setpgrp()
             except Exception: pass
-            try: os.setuid(_APP_USER_UID)
-            except Exception: pass
-        try: os.setpgrp()
-        except Exception: pass
-        _set_resource_limits()
-    except Exception:
-        pass
+            _set_resource_limits()
+            _enforce_permissions(permissions)
+        except Exception:
+            pass
+    return preexec
 
 
 def _safe_id(name):
@@ -277,7 +323,7 @@ def run_app(app_id):
             ['python3', ep],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             text=True, env=env, cwd=app_cwd,
-            preexec_fn=_app_preexec,
+            preexec_fn=_make_preexec(app['permissions']),
         )
         try:
             stdout, stderr = proc.communicate(timeout=30)
@@ -475,7 +521,7 @@ def start_web_app(app_id):
             ['python3', ep],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             env=env, cwd=app_cwd,
-            preexec_fn=_app_preexec,
+            preexec_fn=_make_preexec(app['permissions']),
         )
         pid = proc.pid
         with _cache_lock:
