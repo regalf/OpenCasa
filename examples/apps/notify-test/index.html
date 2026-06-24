@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Notify Test</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>🔔 Notify Test</h1>
+
+  <section class="card">
+    <h2>Invia notifica</h2>
+    <div class="form-row">
+      <select id="notif-severity">
+        <option value="info">Info</option>
+        <option value="warning">Warning</option>
+        <option value="error">Error</option>
+      </select>
+      <input id="notif-title" placeholder="Titolo (es. App Test)" value="Notify Test">
+    </div>
+    <textarea id="notif-message" rows="2" placeholder="Messaggio della notifica...">Ciao mondo! Questa e' una notifica di test.</textarea>
+    <button onclick="sendNotif()" id="send-btn">✉️ Invia notifica</button>
+    <p id="send-msg" class="msg"></p>
+  </section>
+
+  <section class="card">
+    <div class="head-row">
+      <h2>📋 Cronologia</h2>
+      <button class="btn-sm" onclick="clearAll()">🗑️ Cancella tutte</button>
+    </div>
+    <div id="notif-list"><p class="dim">Caricamento...</p></div>
+  </section>
+
+<script src="app.js"></script>
+</body>
+</html>

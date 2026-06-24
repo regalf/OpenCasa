@@ -1,0 +1,43 @@
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0;padding:1.5rem;max-width:640px;margin:0 auto}
+h1{color:#38bdf8;font-size:1.3rem;margin-bottom:1rem}
+h2{font-size:1rem;color:#94a3b8;margin-bottom:.6rem}
+.card{background:#1e293b;border-radius:10px;padding:1rem;margin-bottom:1rem}
+.form-row{display:flex;gap:.5rem;margin-bottom:.5rem}
+select,input,textarea{
+  width:100%;padding:.5rem;background:#0f172a;border:1px solid #334155;
+  border-radius:6px;color:#e2e8f0;font-size:.85rem;font-family:inherit
+}
+select{flex:0 0 110px}
+textarea{resize:vertical;margin-bottom:.5rem}
+button{
+  padding:.5rem 1rem;background:#0ea5e9;color:#fff;border:none;
+  border-radius:6px;cursor:pointer;font-size:.85rem
+}
+button:hover{background:#0284c7}
+.btn-sm{padding:.35rem .7rem;font-size:.78rem;background:#334155}
+.btn-sm:hover{background:#475569}
+.msg{color:#4ade80;font-size:.8rem;margin-top:.4rem;min-height:1.2rem}
+.msg.fail{color:#f87171}
+.dim{color:#64748b;font-size:.85rem}
+.head-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem}
+.notif-item{
+  display:flex;align-items:flex-start;gap:.5rem;
+  padding:.5rem .6rem;border-left:3px solid #64748b;
+  margin-bottom:.3rem;background:#0f172a;border-radius:0 6px 6px 0;font-size:.82rem
+}
+.notif-item.info{border-left-color:#0ea5e9}
+.notif-item.warning{border-left-color:#f59e0b}
+.notif-item.error{border-left-color:#ef4444}
+.notif-body{flex:1;min-width:0}
+.notif-top{display:flex;justify-content:space-between;gap:.5rem}
+.notif-name{font-weight:700;font-size:.8rem}
+.notif-time{color:#64748b;font-size:.65rem;white-space:nowrap}
+.notif-msg{color:#94a3b8;font-size:.78rem;margin-top:.15rem}
+.notif-del{background:none;border:none;color:#64748b;font-size:.7rem;cursor:pointer;padding:0;margin-top:.15rem}
+.notif-del:hover{color:#ef4444}
+@media(max-width:480px){
+  body{padding:1rem}
+  .form-row{flex-direction:column}
+  select{flex:auto}
+}

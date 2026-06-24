@@ -1,0 +1,12 @@
+{
+  "id": "notify-test",
+  "name": "Notify Test",
+  "version": "1.0.0",
+  "description": "Crea e testa le notifiche del sistema — invia notifiche info/warning/error, visualizza la cronologia e cancellale",
+  "author": "OpenCasa",
+  "type": "web",
+  "entry": "app.py",
+  "port": 19015,
+  "permissions": ["network:server"],
+  "autostart": false
+}
