@@ -158,6 +158,7 @@ function loadConfig() {
   var editor = byId('config-editor');
   var notice = byId('config-notice');
   fetch(API + '/api/config').then(function(r) { return r.json(); }).then(function(d) {
+    if (d.error) { showNotif(d.error, 'error'); return; }
     if (!d.exists) {
       editor.classList.add('hidden');
       notice.classList.remove('hidden');
@@ -177,7 +178,7 @@ function loadConfig() {
       row.innerHTML = '<span class="ckey">' + escapeHtml(k) + '</span><input class="cval" data-key="' + escapeAttr(k) + '" value="' + escapeAttr(d.properties[k]) + '">';
       list.appendChild(row);
     });
-  }).catch(function() {});
+  }).catch(function(e) { showNotif('Failed to load config: ' + e.message, 'error'); });
 }
 
 byId('btn-save-config').addEventListener('click', function() {

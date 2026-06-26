@@ -58,30 +58,37 @@ def _get_installed_version():
 def _read_conf():
     props = {}
     if not os.path.isfile(CONF_PATH):
-        return {}
-    with open(CONF_PATH) as f:
-        for line in f:
-            raw = line.rstrip('\n')
-            stripped = line.strip()
-            if not stripped or stripped.startswith('#'):
-                continue
-            if '=' not in stripped:
-                continue
-            k, _, v = stripped.partition('=')
-            props[k.strip()] = {'value': v.strip(), 'raw': raw}
+        return props
+    try:
+        with open(CONF_PATH) as f:
+            for line in f:
+                raw = line.rstrip('\n')
+                stripped = line.strip()
+                if not stripped or stripped.startswith('#'):
+                    continue
+                if '=' not in stripped:
+                    continue
+                k, _, v = stripped.partition('=')
+                props[k.strip()] = {'value': v.strip(), 'raw': raw}
+    except Exception:
+        pass
     return props
+
 
 def _read_conf_flat():
     props = {}
     if not os.path.isfile(CONF_PATH):
-        return {}
-    with open(CONF_PATH) as f:
-        for line in f:
-            stripped = line.strip()
-            if not stripped or stripped.startswith('#') or '=' not in stripped:
-                continue
-            k, _, v = stripped.partition('=')
-            props[k.strip()] = v.strip()
+        return props
+    try:
+        with open(CONF_PATH) as f:
+            for line in f:
+                stripped = line.strip()
+                if not stripped or stripped.startswith('#') or '=' not in stripped:
+                    continue
+                k, _, v = stripped.partition('=')
+                props[k.strip()] = v.strip()
+    except Exception:
+        pass
     return props
 
 def _write_conf(new_props):
@@ -119,6 +126,7 @@ def _get_status():
         'gamemode': conf.get('gamemode', '0') if not running else conf.get('gamemode', '0'),
         'world_exists': os.path.isfile(WORLD_FILE),
         'server_dir': SERVER_DIR,
+        'config_exists': os.path.isfile(CONF_PATH),
     }
 
 def _start():
@@ -240,16 +248,19 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if path == '/api/status':
             self._json(_get_status())
         elif path == '/api/config':
-            conf = _read_conf()
-            raw_lines = []
-            if os.path.isfile(CONF_PATH):
-                with open(CONF_PATH) as f:
-                    raw_lines = f.read().splitlines()
-            self._json({
-                'exists': os.path.isfile(CONF_PATH),
-                'properties': {k: v['value'] for k, v in conf.items()},
-                'raw': raw_lines,
-            })
+            try:
+                conf = _read_conf()
+                raw_lines = []
+                if os.path.isfile(CONF_PATH):
+                    with open(CONF_PATH) as f:
+                        raw_lines = f.read().splitlines()
+                self._json({
+                    'exists': os.path.isfile(CONF_PATH),
+                    'properties': {k: v['value'] for k, v in conf.items()},
+                    'raw': raw_lines,
+                })
+            except Exception as e:
+                self._json({'error': f'failed to read config: {e}', 'exists': False, 'properties': {}}, 500)
         elif path == '/api/output':
             n_str = self._param('lines', '100')
             try:
