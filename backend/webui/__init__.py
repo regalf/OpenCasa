@@ -369,7 +369,7 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
                     app["logs"] = get_logs(app_id, 5)
                     app["perm_state"] = get_permission_state(app_id, self._current_user)
                     from .appmanager import _get_resource_limits
-                    app["resource_limits"] = _get_resource_limits(app_id)
+                    app["resource_limits"] = _get_resource_limits(app_id, self._current_user)
                     return self._send_json({"app": app})
                 if action == "logs":
                     return self._send_json({"logs": get_logs(app_id)})
@@ -674,7 +674,7 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
                     if not data:
                         return self._send_error(400, "body required")
                     from .appmanager import set_resource_limits
-                    return self._send_json(set_resource_limits(app_id, data))
+                    return self._send_json(set_resource_limits(app_id, data, self._current_user))
 
         if path == "/api/v1/notify":
             from .notifications import push_notification

@@ -9,9 +9,8 @@
 
 ### Features
 
-- **Per-app resource limits**: new section in the app detail modal to configure CPU max (seconds) and RAM max (MB) for each app individually. Zero means unlimited. Applied on next start/run
+- **Per-app resource limits**: new section in the app detail modal to configure CPU max (seconds) and RAM max (MB) for each app individually. Zero means unlimited. Limits are stored per-user in the database. Applied on next start/run
 - **mc-server example app**: bareiron Minecraft server manager with 4 tabs (Status, Releases, Config, Output), GitHub release browser, config editor, real-time output polling
-- **mc-server resource limit fix**: resets `RLIMIT_CPU` and `RLIMIT_AS` in subprocess preexec to prevent premature shutdown from inherited 30s CPU / 256MB RAM limits
 - **Release filtering**: `latest` tag skipped in GitHub release fetcher, only proper semver tags shown
 
 ### Bug Fixes

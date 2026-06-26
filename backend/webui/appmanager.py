@@ -175,18 +175,32 @@ def _set_resource_limits(max_memory_mb=None, max_cpu_seconds=None):
             pass
 
 
-def _get_resource_limits(app_id):
-    cfg = config.get('apps', {}).get('resource_limits', {})
-    return cfg.get(app_id, {})
+def _limits_key(app_id, username=None):
+    base = "_app_limits"
+    if username:
+        return f"{base}:{username}:{app_id}"
+    return f"{base}:{app_id}"
 
 
-def set_resource_limits(app_id, limits):
-    config.setdefault('apps', {}).setdefault('resource_limits', {})[app_id] = {
+def _get_resource_limits(app_id, username=None):
+    from . import database as dbmod
+    key = _limits_key(app_id, username)
+    data = dbmod.get(key)
+    if data:
+        try:
+            return json.loads(data)
+        except (json.JSONDecodeError, TypeError):
+            pass
+    return {}
+
+
+def set_resource_limits(app_id, limits, username=None):
+    from . import database as dbmod
+    key = _limits_key(app_id, username)
+    dbmod.set(key, json.dumps({
         'max_memory_mb': limits.get('max_memory_mb', 256),
         'max_cpu_seconds': limits.get('max_cpu_seconds', 30),
-    }
-    from . import save_config
-    save_config()
+    }))
     return {'success': True}
 
 
@@ -454,7 +468,7 @@ def run_app(app_id, username=None):
             ['python3', ep],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             text=True, env=env, cwd=app_cwd,
-            preexec_fn=_make_preexec(granted, app['path'], _get_resource_limits(app_id)),
+            preexec_fn=_make_preexec(granted, app['path'], _get_resource_limits(app_id, username)),
         )
         try:
             stdout, stderr = proc.communicate(timeout=30)
@@ -655,7 +669,7 @@ def start_web_app(app_id, username=None):
             ['python3', ep],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             env=env, cwd=app_cwd,
-            preexec_fn=_make_preexec(granted, app['path'], _get_resource_limits(app_id)),
+            preexec_fn=_make_preexec(granted, app['path'], _get_resource_limits(app_id, username)),
         )
         pid = proc.pid
         with _cache_lock:
