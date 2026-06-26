@@ -87,6 +87,44 @@ class TestNotifications(unittest.TestCase):
         self.assertEqual(get_notifications(None), [])
         self.assertEqual(get_notifications(""), [])
 
+    def test_get_by_app_id(self):
+        from webui.notifications import push_notification, get_notifications
+        push_notification("app1", "A1", "msg", "info", "testuser")
+        push_notification("app2", "A2", "msg", "info", "testuser")
+        push_notification("app1", "A3", "msg", "info", "testuser")
+        all_n = get_notifications("testuser")
+        self.assertEqual(len(all_n), 3)
+        app1_n = get_notifications("testuser", app_id="app1")
+        self.assertEqual(len(app1_n), 2)
+        app2_n = get_notifications("testuser", app_id="app2")
+        self.assertEqual(len(app2_n), 1)
+        app3_n = get_notifications("testuser", app_id="app3")
+        self.assertEqual(len(app3_n), 0)
+
+    def test_delete_with_app_id_enforcement(self):
+        from webui.notifications import push_notification, get_notifications, delete_notification
+        n1 = push_notification("app1", "A1", "msg", "info", "testuser")
+        n2 = push_notification("app2", "A2", "msg", "info", "testuser")
+        self.assertEqual(len(get_notifications("testuser")), 2)
+        ok = delete_notification(n2["id"], "testuser", app_id="app2")
+        self.assertTrue(ok)
+        self.assertEqual(len(get_notifications("testuser")), 1)
+        self.assertEqual(get_notifications("testuser")[0]["app_id"], "app1")
+        not_ok = delete_notification(n1["id"], "testuser", app_id="app2")
+        self.assertFalse(not_ok)
+        self.assertEqual(len(get_notifications("testuser")), 1)
+
+    def test_clear_with_app_id(self):
+        from webui.notifications import push_notification, get_notifications, clear_notifications
+        push_notification("app1", "A", "", "info", "testuser")
+        push_notification("app2", "B", "", "info", "testuser")
+        push_notification("app1", "C", "", "info", "testuser")
+        self.assertEqual(len(get_notifications("testuser")), 3)
+        clear_notifications("testuser", app_id="app1")
+        remaining = get_notifications("testuser")
+        self.assertEqual(len(remaining), 1)
+        self.assertEqual(remaining[0]["app_id"], "app2")
+
 
 if __name__ == "__main__":
     unittest.main()

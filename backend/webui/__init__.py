@@ -42,7 +42,7 @@ DEFAULT_CONFIG = {
     "apps": {"max_processes": 10, "ports": {}, "port_pool": [19000,19001,19002,19003,19004,19005,19006,19007,19008,19009]},
 }
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 import copy
 config = copy.deepcopy(DEFAULT_CONFIG)
@@ -368,6 +368,8 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
                         return self._send_error(404, "app not found")
                     app["logs"] = get_logs(app_id, 5)
                     app["perm_state"] = get_permission_state(app_id, self._current_user)
+                    from .appmanager import _get_resource_limits
+                    app["resource_limits"] = _get_resource_limits(app_id)
                     return self._send_json({"app": app})
                 if action == "logs":
                     return self._send_json({"logs": get_logs(app_id)})
@@ -667,6 +669,12 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
                     from .appmanager import set_app_permission
                     set_app_permission(app_id, data["permission"], data["granted"], self._current_user)
                     return self._send_json({"success": True})
+                if action == "resource-limits":
+                    data = self._json_body()
+                    if not data:
+                        return self._send_error(400, "body required")
+                    from .appmanager import set_resource_limits
+                    return self._send_json(set_resource_limits(app_id, data))
 
         if path == "/api/v1/notify":
             from .notifications import push_notification

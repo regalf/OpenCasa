@@ -1,4 +1,4 @@
-const API = '/api/v1';
+const API = '/app/notify-test/api/v1';
 
 async function api(method, path, body) {
   const opts = {
@@ -37,7 +37,6 @@ async function sendNotif() {
   msgEl.className = 'msg';
   try {
     await api('POST', '/notify', {
-      app_id: 'notify-test',
       title: title,
       message: msg,
       severity: sev,

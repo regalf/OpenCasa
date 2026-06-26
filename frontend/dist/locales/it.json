@@ -170,6 +170,11 @@
   "apps.port_in_use": "(in uso)",
   "apps.stderr_header": "--- stderr ---",
   "apps.exit_prefix": "uscita",
+  "apps.resource_limits": "Limiti Risorsa",
+  "apps.cpu_limit": "CPU max (s)",
+  "apps.ram_limit": "RAM max (MB)",
+  "apps.unlimited": "illimitato",
+  "apps.save_limits": "Salva",
 
   "dashboard.mem_percent": "%",
   "dashboard.network_down": "\u2193",

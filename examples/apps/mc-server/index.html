@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MC Server</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <nav id="tabs">
+    <button class="tab-btn active" data-tab="status">Status</button>
+    <button class="tab-btn" data-tab="releases">Releases</button>
+    <button class="tab-btn" data-tab="config">Config</button>
+    <button class="tab-btn" data-tab="output">Output</button>
+  </nav>
+
+  <div id="notif" class="notif hidden"></div>
+
+  <div id="tab-status" class="tab-content active">
+    <h2>Server Status</h2>
+    <div id="status-grid" class="grid-2">
+      <div class="stat-card">
+        <span class="stat-label">Status</span>
+        <span id="s-running" class="stat-value status-dot stopped">Stopped</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Port</span>
+        <span id="s-port" class="stat-value">--</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Gamemode</span>
+        <span id="s-gamemode" class="stat-value">--</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">MOTD</span>
+        <span id="s-motd" class="stat-value">--</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Binary</span>
+        <span id="s-binary" class="stat-value">--</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">World</span>
+        <span id="s-world" class="stat-value">--</span>
+      </div>
+    </div>
+    <div id="s-actions" class="actions">
+      <button id="btn-start" class="btn btn-green">Start</button>
+      <button id="btn-stop" class="btn btn-red" disabled>Stop</button>
+      <button id="btn-restart" class="btn btn-blue" disabled>Restart</button>
+    </div>
+  </div>
+
+  <div id="tab-releases" class="tab-content">
+    <h2>Releases</h2>
+    <div id="release-list"></div>
+    <div id="dl-progress" class="hidden">
+      <div class="spinner"></div>
+      <span id="dl-status">Downloading...</span>
+    </div>
+    <div id="installed-info" class="installed-info hidden">
+      <strong>Installed:</strong> <span id="bi-version"></span>
+    </div>
+  </div>
+
+  <div id="tab-config" class="tab-content">
+    <h2>server.conf</h2>
+    <div id="config-notice" class="notice hidden">Start the server once to generate server.conf</div>
+    <div id="config-editor" class="config-editor hidden">
+      <div id="config-list"></div>
+      <button id="btn-save-config" class="btn btn-green">Save</button>
+    </div>
+  </div>
+
+  <div id="tab-output" class="tab-content">
+    <h2>Server Output</h2>
+    <div class="console-controls">
+      <button id="btn-auto-scroll" class="btn btn-blue active">Auto-scroll</button>
+      <button id="btn-clear-output" class="btn">Clear</button>
+    </div>
+    <pre id="output-box"><span class="dim">Waiting for server output...</span></pre>
+  </div>
+</div>
+<script src="app.js"></script>
+</body>
+</html>

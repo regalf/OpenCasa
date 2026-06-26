@@ -1,0 +1,13 @@
+{
+  "name": "MC Server",
+  "description": "bareiron server manager — start/stop, server.conf editor, output viewer, release downloader",
+  "version": "1.0.0",
+  "author": "OpenCasa",
+  "entry": "app.py",
+  "type": "web",
+  "port": 18995,
+  "autostart": false,
+  "has_widget": false,
+  "open_in": "iframe",
+  "permissions": ["network:client", "network:server", "files:read", "files:write", "system:exec"]
+}

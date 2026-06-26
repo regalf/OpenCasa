@@ -15,13 +15,16 @@ def _notif_key(username):
     return f"_notifications:{username}"
 
 
-def get_notifications(username):
+def get_notifications(username, app_id=None):
     if not username:
         return []
     raw = _db_get(_notif_key(username))
     if raw:
         try:
-            return json.loads(raw)
+            notifs = json.loads(raw)
+            if app_id:
+                notifs = [n for n in notifs if n.get("app_id") == app_id]
+            return notifs
         except (json.JSONDecodeError, TypeError):
             return []
     return []
@@ -48,17 +51,24 @@ def push_notification(app_id, title, message, severity="info", username=None):
     return n
 
 
-def delete_notification(notif_id, username=None):
+def delete_notification(notif_id, username=None, app_id=None):
     with _lock:
         notifs = get_notifications(username)
         for i, n in enumerate(notifs):
             if n["id"] == notif_id:
+                if app_id and n.get("app_id") != app_id:
+                    return False
                 notifs.pop(i)
                 _save_notifications(username, notifs)
                 return True
     return False
 
 
-def clear_notifications(username=None):
+def clear_notifications(username=None, app_id=None):
     with _lock:
-        _save_notifications(username, [])
+        if app_id:
+            notifs = get_notifications(username)
+            notifs = [n for n in notifs if n.get("app_id") != app_id]
+            _save_notifications(username, notifs)
+        else:
+            _save_notifications(username, [])

@@ -1,5 +1,38 @@
 # Changelog
 
+## v1.1.0 (2026-06-26)
+
+### Security
+
+- **App-scoped notifications**: proxy now intercepts `/app/<id>/api/v1/notif*` and enforces `app_id` from the URL path, preventing apps from reading/modifying notifications of other apps
+- Notification API functions (`push`, `list`, `delete`, `clear`) all support optional `app_id` filtering
+
+### Features
+
+- **Per-app resource limits**: new section in the app detail modal to configure CPU max (seconds) and RAM max (MB) for each app individually. Zero means unlimited. Applied on next start/run
+- **mc-server example app**: bareiron Minecraft server manager with 4 tabs (Status, Releases, Config, Output), GitHub release browser, config editor, real-time output polling
+- **mc-server resource limit fix**: resets `RLIMIT_CPU` and `RLIMIT_AS` in subprocess preexec to prevent premature shutdown from inherited 30s CPU / 256MB RAM limits
+- **Release filtering**: `latest` tag skipped in GitHub release fetcher, only proper semver tags shown
+
+### Bug Fixes
+
+- Notification panel position: changed from `top: 0` to `bottom: 0` so the panel grows upward from the bell button instead of overflowing downward
+- Config editor input visibility in mc-server: styled inputs with proper dark theme colors
+- `_safe_id()` now rejects empty strings
+- `set_app_permission()` saves to global key when `username=None` instead of returning `False`
+- `files:read` permission marked as purely declarative (no pledge/unveil changes)
+
+### Documentation
+
+- Outdated example apps removed: `disk-usage`, `hello-world`, `system-monitor`
+- README, install script, wiki updated to reflect removed apps
+- `API.md`, `DEPLOY.md` moved to wiki, removed from repo
+- `app_password` removed from `DEFAULT_CONFIG` (unused — password managed by OS)
+
+### Testing
+
+- 134 tests total (was 131): 3 new tests for app-scoped notification filtering
+
 ## v1.0.0 (2026-06-24)
 
 Initial release of OpenCasa — a lightweight server management panel for old hardware (PowerPC G3/G4/G5, single-core ARM, legacy x86) with zero external Python dependencies.

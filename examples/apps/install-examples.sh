@@ -3,7 +3,7 @@
 # Run as root: sh install-examples.sh
 APPS_DIR="${1:-/usr/local/webui/apps}"
 echo "Installing example apps to $APPS_DIR"
-for app in calendar hello-web whoami perm-test notify-test; do
+for app in calendar hello-web whoami perm-test notify-test mc-server; do
     cp -r "$(dirname "$0")/$app" "$APPS_DIR/"
     echo "  installed $app"
 done

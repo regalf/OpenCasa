@@ -615,6 +615,16 @@ async function toggleAppPerm(id, perm, granted) {
   }
 }
 
+async function saveResourceLimits(id) {
+  const cpuEl = document.getElementById('rl-cpu');
+  const ramEl = document.getElementById('rl-ram');
+  if (!cpuEl || !ramEl) return;
+  await api('POST', '/apps/' + encodeURIComponent(id) + '/resource-limits', {
+    max_cpu_seconds: parseInt(cpuEl.value) || 0,
+    max_memory_mb: parseInt(ramEl.value) || 0,
+  });
+}
+
 async function runApp(id) {
   state.appOutputLoading = true;
   state.appOutput = null;
@@ -1446,9 +1456,8 @@ function renderFileManager() {
             <td class="file-actions">
               ${!e.is_dir ? `
                 <button onclick="openFile('${escapeHtml(e.name)}')" title="${t('files.edit')}">✏️</button>
-                <button onclick="downloadFile('${escapeHtml(e.name)}')" title="${t('files.download')}">⬇️</button>
-              ` : ''}
-              <button onclick="deleteFile('${escapeHtml(e.name)}')" title="${t('files.delete')}">🗑️</button>
+                <button onclick="downloadFile('${escapeHtml(e.name)}')" title="${t('files.download')}">⬇️</button>` : ''}
+                <button onclick="deleteFile('${escapeHtml(e.name)}')" title="${t('files.delete')}">🗑️</button>
             </td>
           </tr>`).join('')}
       </tbody>
@@ -1529,6 +1538,22 @@ function renderAppDetail(d) {
               }).join('')}
             </div>
           </div>` : ''}
+        <div class="detail-section" style="border-top:1px solid #334155;padding-top:.75rem">
+          <strong style="display:block;margin-bottom:.4rem">${t('apps.resource_limits')}</strong>
+          <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-end">
+            <label style="font-size:.85rem;color:#94a3b8">
+              ${t('apps.cpu_limit')}:<br>
+              <input type="number" id="rl-cpu" value="${d.resource_limits && d.resource_limits.max_cpu_seconds != null ? d.resource_limits.max_cpu_seconds : 30}" min="0" step="1" style="width:80px;background:#1e293b;color:#f1f5f9;border:1px solid #334155;border-radius:4px;padding:.25rem .4rem;font-size:.85rem">
+              <span style="display:block;font-size:.75rem;color:#64748b">0 = ${t('apps.unlimited')}</span>
+            </label>
+            <label style="font-size:.85rem;color:#94a3b8">
+              ${t('apps.ram_limit')}:<br>
+              <input type="number" id="rl-ram" value="${d.resource_limits && d.resource_limits.max_memory_mb != null ? d.resource_limits.max_memory_mb : 256}" min="0" step="1" style="width:80px;background:#1e293b;color:#f1f5f9;border:1px solid #334155;border-radius:4px;padding:.25rem .4rem;font-size:.85rem">
+              <span style="display:block;font-size:.75rem;color:#64748b">0 = ${t('apps.unlimited')}</span>
+            </label>
+            <button class="btn" style="padding:.25rem .6rem;font-size:.8rem" onclick="saveResourceLimits('${escapeHtml(d.id)}')">${t('apps.save_limits')}</button>
+          </div>
+        </div>
         <div class="detail-section">
           <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.9rem">
             <input type="checkbox" id="chk-dashboard" ${isDashboardEnabled(d.id) ? 'checked' : ''}>

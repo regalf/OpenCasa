@@ -143,16 +143,30 @@ def _enforce_permissions(permissions, app_dir=None):
             pass
 
 
-def _set_resource_limits():
+def _set_resource_limits(max_memory_mb=None, max_cpu_seconds=None):
     import resource
-    try:
-        resource.setrlimit(resource.RLIMIT_CPU, (30, 30))
-    except (ValueError, resource.error):
-        pass
-    try:
-        resource.setrlimit(resource.RLIMIT_AS, (256 * 1024 * 1024, 256 * 1024 * 1024))
-    except (ValueError, resource.error):
-        pass
+    mem = max_memory_mb if max_memory_mb is not None else 256
+    cpu = max_cpu_seconds if max_cpu_seconds is not None else 30
+    if cpu > 0:
+        try:
+            resource.setrlimit(resource.RLIMIT_CPU, (cpu, cpu))
+        except (ValueError, resource.error):
+            pass
+    else:
+        try:
+            resource.setrlimit(resource.RLIMIT_CPU, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
+        except (ValueError, resource.error):
+            pass
+    if mem > 0:
+        try:
+            resource.setrlimit(resource.RLIMIT_AS, (mem * 1024 * 1024, mem * 1024 * 1024))
+        except (ValueError, resource.error):
+            pass
+    else:
+        try:
+            resource.setrlimit(resource.RLIMIT_AS, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
+        except (ValueError, resource.error):
+            pass
     nproc = getattr(resource, 'RLIMIT_NPROC', None)
     if nproc is not None:
         try:
@@ -161,8 +175,25 @@ def _set_resource_limits():
             pass
 
 
-def _make_preexec(permissions, app_dir=None):
+def _get_resource_limits(app_id):
+    cfg = config.get('apps', {}).get('resource_limits', {})
+    return cfg.get(app_id, {})
+
+
+def set_resource_limits(app_id, limits):
+    config.setdefault('apps', {}).setdefault('resource_limits', {})[app_id] = {
+        'max_memory_mb': limits.get('max_memory_mb', 256),
+        'max_cpu_seconds': limits.get('max_cpu_seconds', 30),
+    }
+    from . import save_config
+    save_config()
+    return {'success': True}
+
+
+def _make_preexec(permissions, app_dir=None, limits=None):
     """Create a preexec_fn closure that drops privileges and enforces permissions."""
+    mem = (limits or {}).get('max_memory_mb')
+    cpu = (limits or {}).get('max_cpu_seconds')
     def preexec():
         try:
             if _APP_USER_UID is not None and _APP_USER_GID is not None:
@@ -175,7 +206,7 @@ def _make_preexec(permissions, app_dir=None):
                 except Exception: pass
             try: os.setpgrp()
             except Exception: pass
-            _set_resource_limits()
+            _set_resource_limits(mem, cpu)
             _enforce_permissions(permissions, app_dir)
         except Exception:
             pass
@@ -423,7 +454,7 @@ def run_app(app_id, username=None):
             ['python3', ep],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             text=True, env=env, cwd=app_cwd,
-            preexec_fn=_make_preexec(granted, app['path']),
+            preexec_fn=_make_preexec(granted, app['path'], _get_resource_limits(app_id)),
         )
         try:
             stdout, stderr = proc.communicate(timeout=30)
@@ -624,7 +655,7 @@ def start_web_app(app_id, username=None):
             ['python3', ep],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             env=env, cwd=app_cwd,
-            preexec_fn=_make_preexec(granted, app['path']),
+            preexec_fn=_make_preexec(granted, app['path'], _get_resource_limits(app_id)),
         )
         pid = proc.pid
         with _cache_lock:
