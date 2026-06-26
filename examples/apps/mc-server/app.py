@@ -135,21 +135,13 @@ def _start():
                 os.chmod(bp, 0o755)
             except OSError as e:
                 return {'error': f'binary not executable: {e}'}
-        import resource
         _output_buf.clear()
         try:
-            def _preexec():
-                os.setpgrp()
-                try:
-                    resource.setrlimit(resource.RLIMIT_CPU, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
-                    resource.setrlimit(resource.RLIMIT_AS, (512 * 1024 * 1024, 512 * 1024 * 1024))
-                except Exception:
-                    pass
             _server_proc = subprocess.Popen(
                 [bp],
                 cwd=SERVER_DIR,
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                preexec_fn=_preexec,
+                preexec_fn=os.setpgrp,
             )
             t = threading.Thread(target=_reader_thread, args=(_server_proc,), daemon=True)
             t.start()
