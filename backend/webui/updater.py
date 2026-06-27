@@ -138,12 +138,38 @@ def do_update(channel="stable", branch="main"):
         if os.path.isdir(DATA_DIR):
             shutil.copytree(DATA_DIR, backup_dir, symlinks=True)
 
-        # Copy only essential files — never copy .git, tests/, examples/, etc.
-        for _name in ("backend", "frontend", "scripts"):
-            _s = os.path.join(new_source, _name)
-            _d = os.path.join(DATA_DIR, _name)
-            if os.path.isdir(_s):
-                shutil.copytree(_s, _d, symlinks=True, dirs_exist_ok=True)
+        # Copy only essential files — flat layout matching the installer
+        # backend/webui.py → DATA_DIR/webui.py
+        _src = os.path.join(new_source, "backend", "webui.py")
+        if os.path.isfile(_src):
+            shutil.copy2(_src, os.path.join(DATA_DIR, "webui.py"))
+
+        # backend/webui/*.py → DATA_DIR/webui/
+        _src = os.path.join(new_source, "backend", "webui")
+        _dst = os.path.join(DATA_DIR, "webui")
+        if os.path.isdir(_src):
+            os.makedirs(_dst, exist_ok=True)
+            for _f in os.listdir(_src):
+                if _f.endswith(".py"):
+                    shutil.copy2(os.path.join(_src, _f), os.path.join(_dst, _f))
+
+        # frontend/dist/* (files) → DATA_DIR/ (flat)
+        _src = os.path.join(new_source, "frontend", "dist")
+        if os.path.isdir(_src):
+            for _f in os.listdir(_src):
+                _fp = os.path.join(_src, _f)
+                if os.path.isfile(_fp):
+                    shutil.copy2(_fp, os.path.join(DATA_DIR, _f))
+                elif _f == "locales":
+                    shutil.copytree(_fp, os.path.join(DATA_DIR, "locales"),
+                                    symlinks=True, dirs_exist_ok=True)
+
+        # scripts/* → DATA_DIR/scripts/
+        _src = os.path.join(new_source, "scripts")
+        _dst = os.path.join(DATA_DIR, "scripts")
+        if os.path.isdir(_src):
+            shutil.copytree(_src, _dst, symlinks=True, dirs_exist_ok=True)
+
         logging.info("file merge complete")
 
         # Purge stale bytecache so Python picks up new .py files
