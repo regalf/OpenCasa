@@ -13,6 +13,8 @@ First stable release via GitHub Releases.
 ### Bug Fixes
 
 - `saveResourceLimits` not defined (missing window export) — now exposed globally
+- **Update panel**: missing `.update-panel` CSS selector prevented panel from displaying as popover — appeared inline in sidebar instead
+- **Nightly update**: `doNightlyUpdate()` skipped install when local and remote git hashes matched; now always reinstalls without availability check
 
 ### Documentation
 

@@ -343,6 +343,7 @@ body{
   text-align:left;border-radius:6px;cursor:pointer;font-size:.95rem;width:100%;position:relative
 }
 .sidebar-upd-btn:hover{background:#334155;color:#e2e8f0}
+.update-panel{
   position:absolute;left:100%;bottom:0;width:380px;
   background:#1e293b;border:1px solid #334155;border-left:none;
   animation:slideFromEdge .2s ease;

@@ -1922,25 +1922,21 @@ function updateChannelChange() {
 }
 
 async function doNightlyUpdate() {
-  state.updateChecking = true;
-  state.updateCheckResult = null;
+  // Nightly: skip availability check, always reinstall from branch
+  state.updateDownloading = true;
+  state.updateError = null;
+  state.updateRestarting = false;
   render();
   try {
     const cfg = state.updateConfig || {};
-    const res = await api('GET', '/system/check-update?channel=nightly&branch=' + encodeURIComponent(cfg.branch || 'main'));
-    state.updateCheckResult = res;
-    state.updateChecking = false;
+    const res = await api('POST', '/system/do-update', {channel: 'nightly', branch: cfg.branch || 'main'});
+    state.updateDownloading = false;
+    state.updateRestarting = true;
     render();
-    if (res && res.available) {
-      // Auto-install if available
-      await doUpdate();
-    } else {
-      state.updateError = t('update.no_new_version');
-      render();
-    }
+    setTimeout(() => { window.location.reload(); }, 3000);
   } catch(e) {
-    state.updateChecking = false;
-    state.updateError = t('update.no_internet');
+    state.updateDownloading = false;
+    state.updateError = e.message || t('update.error');
     render();
   }
 }
