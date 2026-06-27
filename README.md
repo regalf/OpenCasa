@@ -82,6 +82,8 @@ sudo sh scripts/install.sh     # Linux
 ```
 
 > **Note:** In-place updates from the UI (sidebar → Updates) require authentication as the `root` user. Non-root users cannot trigger system updates via the web interface.
+>
+> Automatic updates (`update.auto_update` in `/etc/opencasa.json`) are **disabled by default**. When enabled, the daemon checks every 6 hours and sends an info notification 5 minutes and 1 minute before applying the update. The existing 40-second restart countdown still applies.
 
 Manual steps (if you prefer not to use the installer):
 
