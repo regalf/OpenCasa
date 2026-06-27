@@ -152,6 +152,7 @@ Web apps receive `OPENCASA_ACTION=widget` when polled for widget data (output JS
 |-----|------|-------------|
 | `calendar` | `web` (port 18997) | Full calendar web app with dashboard widget support |
 | `hello-web` | `web` (port 18998) | Minimal test web app |
+| `mc-server` | `web` (port 18995) | bareiron Minecraft server manager. **Note**: il binario bareiron e' attualmente compilato solo per OpenBSD/macppc — su altre piattaforme compila da sorgente o usa un jar alternativo |
 
 Install via `sh examples/apps/install-examples.sh`
 
