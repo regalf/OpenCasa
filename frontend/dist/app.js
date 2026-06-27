@@ -267,6 +267,17 @@ async function fetchAll() {
       state.serverVersion = i.version || '';
       state.updateConfig = i.update_config || {channel: 'stable', branch: 'main'};
     }
+
+    // Auto-check for updates once per day
+    if (state.updateConfig) {
+      const today = new Date().toISOString().slice(0, 10);
+      const lastCheck = localStorage.getItem('lastUpdateCheck');
+      if (lastCheck !== today) {
+        autoCheckUpdate().then(() => {
+          localStorage.setItem('lastUpdateCheck', today);
+        }).catch(() => {});
+      }
+    }
   } catch(e) { state.error = e.message; }
 
   if (state.view === 'dashboard' && document.getElementById('dash-grid')) {
@@ -1833,6 +1844,7 @@ function renderUpdatePanel() {
   const r = state.updateCheckResult;
   const cfg = state.updateConfig || {};
   const isNightly = cfg.channel === 'nightly';
+  const showInstallBtn = r && r.available && !state.updateDownloading && !state.updateRestarting;
   return `
     <div class="update-panel">
       <div class="update-panel-header">
@@ -1858,10 +1870,10 @@ function renderUpdatePanel() {
             <span class="update-label">${t('update.current')}:</span>
             <span>${escapeHtml(state.serverVersion || '?')}</span>
           </div>
-          ${r && !r.error ? `
+          ${r && !r.error && r.latest_version ? `
           <div class="update-info-row">
             <span class="update-label">${t('update.latest')}:</span>
-            <span>${escapeHtml(r.latest_version || '?')}</span>
+            <span>${escapeHtml(r.latest_version)}</span>
           </div>` : ''}
         </div>
         ${state.updateChecking ? `
@@ -1872,18 +1884,29 @@ function renderUpdatePanel() {
         <div class="update-status" style="color:#22c55e">${t('update.success')}</div>` : ''}
         ${state.updateError ? `
         <div class="update-status" style="color:#f87171">${escapeHtml(state.updateError)}</div>` : ''}
-        ${r && !state.updateChecking ? `
-          ${r.error ? `
-          <div class="update-status" style="color:#f87171">${t('update.no_internet')}</div>` : r.available ? `
-          <div class="update-available">
-            <strong>${t('update.available')}</strong>
-            ${r.changelog ? `<details class="update-changelog"><summary>${t('update.changelog')}</summary><pre>${escapeHtml(r.changelog)}</pre></details>` : ''}
-          </div>
-          <button class="btn btn-primary" style="width:100%;margin-top:.5rem" onclick="doUpdate()">${t('update.update_now')}</button>` : `
-          <div class="update-status" style="color:#22c55e">${t('update.no_new_version')}</div>`}
+        ${r && r.error && !state.updateChecking ? `
+        <div class="update-status" style="color:#f87171">${t('update.no_internet')}</div>` : ''}
+        ${r && !r.error && !r.available && !state.updateChecking ? `
+        <div class="update-status" style="color:#22c55e">${t('update.no_new_version')}</div>` : ''}
+        ${showInstallBtn ? `
+        <div class="update-available">
+          <strong>${t('update.available')}</strong>
+          ${r.changelog ? `<details class="update-changelog"><summary>${t('update.changelog')}</summary><pre>${escapeHtml(r.changelog)}</pre></details>` : ''}
+        </div>` : ''}
+        ${!state.updateChecking && !state.updateDownloading && !state.updateRestarting ? `
+          ${isNightly ? `
+          <button class="btn btn-primary" style="width:100%;margin-top:.5rem" onclick="doNightlyUpdate()">
+            ${t('update.install_nightly')}
+          </button>` : `
+            ${showInstallBtn ? `
+          <button class="btn btn-primary" style="width:100%;margin-top:.5rem" onclick="doUpdate()">
+            ${t('update.update_now')}
+          </button>` : `
+          <button class="btn btn-primary" style="width:100%;margin-top:.5rem" onclick="checkUpdate()">
+            ${t('update.check')}
+          </button>`}
+          `}
         ` : ''}
-        ${!r && !state.updateChecking ? `
-        <button class="btn btn-primary" style="width:100%;margin-top:.5rem" onclick="checkUpdate()">${t('update.check')}</button>` : ''}
       </div>
     </div>
   `;
@@ -1892,10 +1915,49 @@ function renderUpdatePanel() {
 function updateChannelChange() {
   const sel = document.getElementById('upd-channel');
   if (!sel) return;
-  const isNightly = sel.value === 'nightly';
   if (!state.updateConfig) state.updateConfig = {};
   state.updateConfig.channel = sel.value;
+  state.updateCheckResult = null;
   render();
+}
+
+async function doNightlyUpdate() {
+  state.updateChecking = true;
+  state.updateCheckResult = null;
+  render();
+  try {
+    const cfg = state.updateConfig || {};
+    const res = await api('GET', '/system/check-update?channel=nightly&branch=' + encodeURIComponent(cfg.branch || 'main'));
+    state.updateCheckResult = res;
+    state.updateChecking = false;
+    render();
+    if (res && res.available) {
+      // Auto-install if available
+      await doUpdate();
+    } else {
+      state.updateError = t('update.no_new_version');
+      render();
+    }
+  } catch(e) {
+    state.updateChecking = false;
+    state.updateError = t('update.no_internet');
+    render();
+  }
+}
+
+async function autoCheckUpdate() {
+  try {
+    const cfg = state.updateConfig || {};
+    const res = await api('GET', '/system/check-update?channel=' + encodeURIComponent(cfg.channel || 'stable') + '&branch=' + encodeURIComponent(cfg.branch || 'main'));
+    if (res && res.available && !res.silent) {
+      await api('POST', '/notify', {
+        app_id: 'system',
+        title: 'OpenCasa',
+        message: t('update.notification', res.latest_version || ''),
+        severity: 'info',
+      });
+    }
+  } catch(e) {}
 }
 
 // Quick poll system stats every 10s (CPU/memory/network), full dashboard every 30s
@@ -1998,5 +2060,6 @@ window.toggleUpdatePanel = toggleUpdatePanel;
 window.closeUpdatePanel = closeUpdatePanel;
 window.checkUpdate = checkUpdate;
 window.doUpdate = doUpdate;
+window.doNightlyUpdate = doNightlyUpdate;
 window.updateChannelChange = updateChannelChange;
 })();

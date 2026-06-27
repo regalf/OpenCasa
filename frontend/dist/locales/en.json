@@ -212,5 +212,7 @@
   "update.nightly_warning": "Nightly channel uses the latest development code. Updates are checked daily but notifications are disabled. Use with caution on production systems.",
   "update.requires_root": "Only root can update the system",
   "update.failed": "Update failed",
-  "update.success": "Update will be applied on restart. Restarting..."
+  "update.success": "Update will be applied on restart. Restarting...",
+  "update.install_nightly": "Install New Nightly",
+  "update.notification": "Update available: %s"
 }

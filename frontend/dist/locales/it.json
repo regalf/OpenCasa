@@ -212,5 +212,7 @@
   "update.nightly_warning": "Il canale Nightly usa il codice di sviluppo piu' recente. Gli aggiornamenti vengono controllati quotidianamente ma le notifiche sono disattivate. Usa con cautela su sistemi di produzione.",
   "update.requires_root": "Solo root puo' aggiornare il sistema",
   "update.failed": "Aggiornamento fallito",
-  "update.success": "L'aggiornamento verra' applicato al riavvio. Riavvio in corso..."
+  "update.success": "L'aggiornamento verra' applicato al riavvio. Riavvio in corso...",
+  "update.install_nightly": "Installa Nuova Nightly",
+  "update.notification": "Aggiornamento disponibile: %s"
 }
