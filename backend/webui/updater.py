@@ -126,6 +126,11 @@ def do_update(channel="stable", branch="main"):
             with open(CONFIG_PATH) as f:
                 config_backup = f.read()
 
+        # Remove any residual .git from previous buggy updates before backup+merge
+        _git_dst = os.path.join(DATA_DIR, ".git")
+        if os.path.isdir(_git_dst):
+            shutil.rmtree(_git_dst, ignore_errors=True)
+
         # Backup current installation
         backup_dir = DATA_DIR.rstrip("/") + ".bak"
         if os.path.isdir(backup_dir):
@@ -133,8 +138,8 @@ def do_update(channel="stable", branch="main"):
         if os.path.isdir(DATA_DIR):
             shutil.copytree(DATA_DIR, backup_dir, symlinks=True)
 
-        # Copy new files (preserve database/ and apps/)
-        _merge_dirs(new_source, DATA_DIR, preserve=["database", "apps"])
+        # Copy new files (preserve database/, apps/, .git/)
+        _merge_dirs(new_source, DATA_DIR, preserve=["database", "apps", ".git"])
         logging.info("file merge complete")
 
         # Purge stale bytecache so Python picks up new .py files
