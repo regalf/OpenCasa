@@ -191,5 +191,26 @@
   "notif.clear_all": "Clear All",
   "notif.delete": "Delete",
   "notif.empty": "No notifications",
-  "notif.now": "now"
+  "notif.now": "now",
+
+  "update.check": "Check for Updates",
+  "update.current": "Current version",
+  "update.latest": "Latest version",
+  "update.channel": "Channel",
+  "update.branch": "Branch",
+  "update.stable": "Stable",
+  "update.nightly": "Nightly",
+  "update.available": "Update available",
+  "update.up_to_date": "Up to date",
+  "update.update_now": "Update Now",
+  "update.checking": "Checking...",
+  "update.downloading": "Downloading update...",
+  "update.restarting": "Restarting...",
+  "update.no_internet": "Could not check for updates",
+  "update.no_new_version": "You have the latest version",
+  "update.changelog": "Changelog",
+  "update.nightly_warning": "Nightly channel uses the latest development code. Updates are checked daily but notifications are disabled. Use with caution on production systems.",
+  "update.requires_root": "Only root can update the system",
+  "update.failed": "Update failed",
+  "update.success": "Update will be applied on restart. Restarting..."
 }

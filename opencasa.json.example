@@ -28,6 +28,10 @@
     "memory_unit": "MB",
     "language": "en"
   },
+  "update": {
+    "channel": "stable",
+    "branch": "main"
+  },
   "apps_dir": "/usr/local/webui/apps",
   "app_user": "opencasa",
   "apps": {

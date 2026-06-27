@@ -277,8 +277,12 @@ frontend/dist/            # Built frontend (static files)
   index.html, style.css, app.js, favicon.svg
   locales/                # en.json, it.json
 examples/apps/            # Example app manifests + scripts
-scripts/webui             # OpenBSD rc.d script
-scripts/webui.service     # Linux systemd unit
+  scripts/webui             # OpenBSD rc.d script
+  scripts/webui.service     # Linux systemd unit
+  scripts/install-release.sh # Release tarball installer
+  scripts/make_release.py   # Release artifact builder
+  scripts/extract_changelog.py # Changelog extractor for release notes
+  RELEASE.md                # Release process documentation
 ```
 
 ## License

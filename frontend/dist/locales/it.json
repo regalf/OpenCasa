@@ -191,5 +191,26 @@
   "notif.clear_all": "Cancella Tutte",
   "notif.delete": "Elimina",
   "notif.empty": "Nessuna notifica",
-  "notif.now": "ora"
+  "notif.now": "ora",
+
+  "update.check": "Controlla Aggiornamenti",
+  "update.current": "Versione attuale",
+  "update.latest": "Ultima versione",
+  "update.channel": "Canale",
+  "update.branch": "Branch",
+  "update.stable": "Stabile",
+  "update.nightly": "Nightly",
+  "update.available": "Aggiornamento disponibile",
+  "update.up_to_date": "Aggiornato",
+  "update.update_now": "Aggiorna Ora",
+  "update.checking": "Controllo...",
+  "update.downloading": "Scaricamento aggiornamento...",
+  "update.restarting": "Riavvio...",
+  "update.no_internet": "Impossibile controllare aggiornamenti",
+  "update.no_new_version": "Hai l'ultima versione",
+  "update.changelog": "Novita'",
+  "update.nightly_warning": "Il canale Nightly usa il codice di sviluppo piu' recente. Gli aggiornamenti vengono controllati quotidianamente ma le notifiche sono disattivate. Usa con cautela su sistemi di produzione.",
+  "update.requires_root": "Solo root puo' aggiornare il sistema",
+  "update.failed": "Aggiornamento fallito",
+  "update.success": "L'aggiornamento verra' applicato al riavvio. Riavvio in corso..."
 }

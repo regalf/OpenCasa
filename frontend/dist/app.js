@@ -65,6 +65,14 @@ let state = {
   fmPrefixes: [],
   fmView: 'home',
   notifPanelOpen: false,
+  updatePanelOpen: false,
+  updateChecking: false,
+  updateCheckResult: null,
+  updateDownloading: false,
+  updateRestarting: false,
+  updateError: '',
+  updateConfig: null,
+  serverVersion: '',
 };
 
 async function api(method, path, body) {
@@ -254,7 +262,11 @@ async function fetchAll() {
     }
     if (n && n.notifications) state.notifications = n.notifications;
     updateNotifBadge();
-    if (i && i.hostname) state.info = i;
+    if (i && i.hostname) {
+      state.info = i;
+      state.serverVersion = i.version || '';
+      state.updateConfig = i.update_config || {channel: 'stable', branch: 'main'};
+    }
   } catch(e) { state.error = e.message; }
 
   if (state.view === 'dashboard' && document.getElementById('dash-grid')) {
@@ -1169,6 +1181,11 @@ function render() {
       `).join('')}
       ` : ''}
       <div class="spacer"></div>
+      <button class="sidebar-notif-btn sidebar-upd-btn" onclick="toggleUpdatePanel()">
+        <span style="font-size:1.1rem">&#x21BB;</span>
+        <span>Updates</span>
+      </button>
+      ${state.updatePanelOpen ? renderUpdatePanel() : ''}
       <div class="notif-wrap">
         <button class="sidebar-notif-btn" onclick="toggleNotifPanel()">
           🔔<span class="notif-badge" id="notif-count"></span>
@@ -1723,6 +1740,14 @@ document.addEventListener('click', function(e) {
       render();
     }
   }
+  if (state.updatePanelOpen) {
+    const p = document.querySelector('.update-panel');
+    const b = document.querySelector('.sidebar-upd-btn');
+    if (p && !p.contains(e.target) && b && !b.contains(e.target)) {
+      state.updatePanelOpen = false;
+      render();
+    }
+  }
 });
 
 async function deleteNotif(id) {
@@ -1741,6 +1766,134 @@ async function clearNotifs() {
     updateNotifBadge();
     render();
   } catch(e) {}
+}
+
+// ── Update System ──
+
+async function toggleUpdatePanel() {
+  if (state.updatePanelOpen) {
+    state.updatePanelOpen = false;
+    render();
+    return;
+  }
+  state.updateCheckResult = null;
+  state.updateChecking = false;
+  state.updatePanelOpen = true;
+  render();
+}
+
+function closeUpdatePanel() {
+  state.updatePanelOpen = false;
+  render();
+}
+
+async function checkUpdate() {
+  state.updateChecking = true;
+  state.updateCheckResult = null;
+  render();
+  try {
+    const cfg = state.updateConfig || {};
+    const res = await api('GET', '/system/check-update?channel=' + encodeURIComponent(cfg.channel || 'stable') + '&branch=' + encodeURIComponent(cfg.branch || 'main'));
+    state.updateCheckResult = res;
+  } catch(e) {
+    state.updateCheckResult = {error: true};
+  }
+  state.updateChecking = false;
+  render();
+}
+
+async function doUpdate() {
+  state.updateDownloading = true;
+  render();
+  try {
+    const cfg = state.updateConfig || {};
+    const res = await api('POST', '/system/do-update', {
+      channel: cfg.channel || 'stable',
+      branch: cfg.branch || 'main',
+    });
+    if (res && res.success) {
+      state.updateDownloading = false;
+      state.updateRestarting = true;
+      render();
+    } else {
+      state.updateError = res?.message || t('update.failed');
+      state.updateDownloading = false;
+      render();
+    }
+  } catch(e) {
+    state.updateError = t('update.failed');
+    state.updateDownloading = false;
+    render();
+  }
+}
+
+function renderUpdatePanel() {
+  const r = state.updateCheckResult;
+  const cfg = state.updateConfig || {};
+  const isNightly = cfg.channel === 'nightly';
+  return `
+    <div class="update-panel">
+      <div class="update-panel-header">
+        <h3>Updates</h3>
+        <button class="btn" style="font-size:.8rem" onclick="closeUpdatePanel()">✕</button>
+      </div>
+      <div class="update-panel-body">
+        <div class="update-info">
+          <div class="update-info-row">
+            <span class="update-label">${t('update.channel')}:</span>
+            <select class="update-select" id="upd-channel" onchange="updateChannelChange()">
+              <option value="stable" ${isNightly ? '' : 'selected'}>${t('update.stable')}</option>
+              <option value="nightly" ${isNightly ? 'selected' : ''}>${t('update.nightly')}</option>
+            </select>
+          </div>
+          ${isNightly ? `
+          <div class="update-info-row">
+            <span class="update-label">${t('update.branch')}:</span>
+            <input class="update-input" id="upd-branch" value="${escapeHtml(cfg.branch || 'main')}" style="width:120px">
+          </div>
+          <div class="update-nightly-warning">${t('update.nightly_warning')}</div>` : ''}
+          <div class="update-info-row">
+            <span class="update-label">${t('update.current')}:</span>
+            <span>${escapeHtml(state.serverVersion || '?')}</span>
+          </div>
+          ${r && !r.error ? `
+          <div class="update-info-row">
+            <span class="update-label">${t('update.latest')}:</span>
+            <span>${escapeHtml(r.latest_version || '?')}</span>
+          </div>` : ''}
+        </div>
+        ${state.updateChecking ? `
+        <div class="update-status">${t('update.checking')}</div>` : ''}
+        ${state.updateDownloading ? `
+        <div class="update-status">${t('update.downloading')}</div>` : ''}
+        ${state.updateRestarting ? `
+        <div class="update-status" style="color:#22c55e">${t('update.success')}</div>` : ''}
+        ${state.updateError ? `
+        <div class="update-status" style="color:#f87171">${escapeHtml(state.updateError)}</div>` : ''}
+        ${r && !state.updateChecking ? `
+          ${r.error ? `
+          <div class="update-status" style="color:#f87171">${t('update.no_internet')}</div>` : r.available ? `
+          <div class="update-available">
+            <strong>${t('update.available')}</strong>
+            ${r.changelog ? `<details class="update-changelog"><summary>${t('update.changelog')}</summary><pre>${escapeHtml(r.changelog)}</pre></details>` : ''}
+          </div>
+          <button class="btn btn-primary" style="width:100%;margin-top:.5rem" onclick="doUpdate()">${t('update.update_now')}</button>` : `
+          <div class="update-status" style="color:#22c55e">${t('update.no_new_version')}</div>`}
+        ` : ''}
+        ${!r && !state.updateChecking ? `
+        <button class="btn btn-primary" style="width:100%;margin-top:.5rem" onclick="checkUpdate()">${t('update.check')}</button>` : ''}
+      </div>
+    </div>
+  `;
+}
+
+function updateChannelChange() {
+  const sel = document.getElementById('upd-channel');
+  if (!sel) return;
+  const isNightly = sel.value === 'nightly';
+  if (!state.updateConfig) state.updateConfig = {};
+  state.updateConfig.channel = sel.value;
+  render();
 }
 
 // Quick poll system stats every 10s (CPU/memory/network), full dashboard every 30s
@@ -1834,8 +1987,14 @@ window.goHome = goHome;
 window.loadFiles = loadFiles;
 window.togglePin = togglePin;
 window.togglePinFromBrowse = togglePinFromBrowse;
+window.saveResourceLimits = saveResourceLimits;
 window.toggleNotifPanel = toggleNotifPanel;
 window.closeNotifPanel = closeNotifPanel;
 window.deleteNotif = deleteNotif;
 window.clearNotifs = clearNotifs;
+window.toggleUpdatePanel = toggleUpdatePanel;
+window.closeUpdatePanel = closeUpdatePanel;
+window.checkUpdate = checkUpdate;
+window.doUpdate = doUpdate;
+window.updateChannelChange = updateChannelChange;
 })();

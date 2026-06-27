@@ -40,9 +40,10 @@ DEFAULT_CONFIG = {
     "apps_autostart": True,
     "app_user": "opencasa",
     "apps": {"max_processes": 10, "ports": {}, "port_pool": [19000,19001,19002,19003,19004,19005,19006,19007,19008,19009]},
+    "update": {"channel": "stable", "branch": "main"},
 }
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 
 import copy
 config = copy.deepcopy(DEFAULT_CONFIG)
@@ -275,6 +276,7 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
         if path == "/api/v1/health":
             return self._send_json({
                 "status": "ok",
+                "version": __version__,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             })
 
@@ -342,11 +344,23 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
 
         if path == "/api/v1/system/info":
             from .system import get_system_info
-            return self._send_json(get_system_info())
+            info = get_system_info()
+            info["version"] = __version__
+            info["update_config"] = config.get("update", {})
+            return self._send_json(info)
 
         if path == "/api/v1/system/interfaces":
             from .system import _list_interfaces
             return self._send_json({"interfaces": _list_interfaces()})
+
+        if path == "/api/v1/system/check-update":
+            from .updater import check_update
+            cfg = config.get("update", {})
+            result = check_update(
+                channel=params.get("channel", cfg.get("channel", "stable")),
+                branch=params.get("branch", cfg.get("branch", "main")),
+            )
+            return self._send_json(result)
 
         if path == "/api/v1/apps" or path == "/api/v1/apps/":
             from .appmanager import list_apps
@@ -746,6 +760,26 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
                 if not ok:
                     return self._send_error(500, msg)
             return self._send_json({"success": True})
+
+        if path == "/api/v1/system/do-update":
+            if not self._is_root:
+                return self._send_error(403, "forbidden")
+            data = self._json_body() or {}
+            from .updater import do_update
+            cfg = config.get("update", {})
+            result = do_update(
+                channel=data.get("channel", cfg.get("channel", "stable")),
+                branch=data.get("branch", cfg.get("branch", "main")),
+            )
+            if result.get("needs_restart"):
+                # Spawn restart in background
+                import threading
+                def _restart():
+                    import time
+                    time.sleep(1)
+                    os.execv(sys.executable, [sys.executable] + sys.argv)
+                threading.Thread(target=_restart, daemon=True).start()
+            return self._send_json(result)
 
         # Upload avatar
         if path == "/api/v1/users/avatar":

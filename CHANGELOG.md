@@ -1,5 +1,31 @@
 # Changelog
 
+## v1.2.0 (2026-06-27)
+
+### Features
+
+- **Update system**: new `backend/webui/updater.py` module with two channels:
+  - **Stable**: downloads latest release tarball from GitHub Releases (`check_update()` → `do_update()`)
+  - **Nightly**: clones repo branch via `git clone --depth 1` with HTTP tarball fallback; silent checks (no notification badge)
+- **Config migration**: on update, `_merge_config_file()` preserves `master_key`, `root_password`, `jwt_secret`, and `update` settings while adding new keys from updated `DEFAULT_CONFIG`
+- **Update API**: `GET /api/v1/system/check-update` and `POST /api/v1/system/do-update` (root only, auto-restarts daemon via `os.execv`)
+- **Frontend update panel**: sidebar "Updates" button (above notifications) opens a modal with channel/branch selection, check button, changelog display, and update button
+- **Version in health/info endpoints**: `GET /api/v1/health` now returns `version`, `GET /api/v1/system/info` includes `version` and `update_config`
+- **install-release.sh**: new script for stable release install (`doas sh scripts/install-release.sh`), auto-downloads latest GitHub release or accepts local tarball path
+- **install.sh**: newly generated configs now set `update_channel: "nightly"` (repo/tarball installs)
+- **make_release.py**: script to create versioned release tarball (`python3 scripts/make_release.py v1.2.0`)
+- **extract_changelog.py**: script to extract changelog section for a given version (used by `gh release create`)
+- **RELEASE.md**: documentation of the release process
+
+### Documentation
+
+- New `RELEASE.md` with step-by-step release instructions
+- Locales: added 18 new keys for the update UI (en.json + it.json)
+
+### Testing
+
+- All 134 existing tests pass unmodified
+
 ## v1.1.0 (2026-06-26)
 
 ### Security

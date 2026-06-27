@@ -214,6 +214,8 @@ setup_config() {
   _jwt=$( (command -v openssl >/dev/null && openssl rand -hex 32) || (command -v python3 >/dev/null && python3 -c "import secrets; print(secrets.token_hex(32))") || echo "CHANGE-ME-$(date +%s)" )
   _tmpcf=$(mktemp /tmp/opencasa-conf-XXXXXX) 2>/dev/null || _tmpcf="$CONFIG_PATH"
   sed "s/JWT_SECRET_PLACEHOLDER/${_jwt}/" "$SRC_DIR/opencasa.json.example" > "$_tmpcf" 2>/dev/null || cp "$SRC_DIR/opencasa.json.example" "$_tmpcf"
+  # Set update channel to nightly for repo/tarball install (stable releases use install-release.sh)
+  sed -i 's/"channel": "stable"/"channel": "nightly"/' "$_tmpcf" 2>/dev/null
   chmod 600 "$_tmpcf"
   [ "$_tmpcf" != "$CONFIG_PATH" ] && mv "$_tmpcf" "$CONFIG_PATH"
   printf "  ${GREEN}✓${NC} %s created\n" "$CONFIG_PATH"
