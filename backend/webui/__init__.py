@@ -43,7 +43,7 @@ DEFAULT_CONFIG = {
     "update": {"channel": "stable", "branch": "main"},
 }
 
-__version__ = "1.2.0"
+__version__ = "1.3.0"
 
 import copy
 config = copy.deepcopy(DEFAULT_CONFIG)

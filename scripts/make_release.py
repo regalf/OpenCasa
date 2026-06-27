@@ -19,18 +19,18 @@ def main():
 
     # verify version matches __init__.py
     init_py = os.path.join(root, "backend", "webui", "__init__.py")
+    ver_stripped = version.lstrip("v")
     with open(init_py) as f:
-        if f'__version__ = "{version}"' not in f.read():
-            print(f"ERROR: __version__ in __init__.py does not match {version}", file=sys.stderr)
-            sys.exit(1)
+        content = f.read()
+    if f'__version__ = "{ver_stripped}"' not in content and f'__version__ = "{version}"' not in content:
+        print(f"ERROR: __version__ in __init__.py does not match {version}", file=sys.stderr)
+        sys.exit(1)
 
-    # verify git tag
+    # verify git tag (warn only, don't require confirmation — non-interactive)
     try:
         tags = subprocess.check_output(["git", "tag", "--points-at", "HEAD"], text=True).strip().split()
         if version not in tags:
-            print(f"WARNING: tag {version} not on HEAD. Continue? [y/N] ", end="", file=sys.stderr)
-            if input().lower() != "y":
-                sys.exit(1)
+            print(f"INFO: tag {version} not yet on HEAD — creating tarball anyway", file=sys.stderr)
     except subprocess.CalledProcessError:
         pass
 

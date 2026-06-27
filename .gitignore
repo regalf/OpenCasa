@@ -6,3 +6,4 @@ apps/*.json
 
 # Agent instructions (not tracked, local only)
 AGENTS_RELEASE.md
+*.tar.gz

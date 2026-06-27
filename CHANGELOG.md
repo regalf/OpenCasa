@@ -1,5 +1,24 @@
 # Changelog
 
+## v1.3.0 (2026-06-27)
+
+First stable release via GitHub Releases.
+
+### Features
+
+- **Update system**: self-update with two channels (stable via tarball + nightly via git clone), config migration preserving master_key/root_password, frontend update panel
+- **install-release.sh**: curl one-liner install from latest stable release
+- **RELEASE.md, AGENTS_RELEASE.md**: release process documentation
+
+### Bug Fixes
+
+- `saveResourceLimits` not defined (missing window export) — now exposed globally
+
+### Documentation
+
+- README: reordered install sections (release first, nightly second), added curl one-liner for release install
+- New `RELEASE.md`, `scripts/make_release.py`, `scripts/extract_changelog.py`
+
 ## v1.2.0 (2026-06-27)
 
 ### Features
