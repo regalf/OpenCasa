@@ -135,6 +135,9 @@ def do_update(channel="stable", branch="main"):
         # Copy new files (preserve database/ and apps/)
         _merge_dirs(new_source, DATA_DIR, preserve=["database", "apps"])
 
+        # Purge stale bytecache so Python picks up new .py files
+        _purge_pycache(DATA_DIR)
+
         # Merge config: add new keys while preserving existing values
         if config_backup:
             _merge_config_file(CONFIG_PATH)
@@ -204,6 +207,18 @@ def _merge_config_file(config_path):
         f.flush()
         os.fsync(f.fileno())
     os.replace(tmp, config_path)
+
+
+def _purge_pycache(root):
+    """Recursively remove all __pycache__ directories under root."""
+    for dirpath, dirnames, _ in os.walk(root, topdown=False):
+        for d in dirnames:
+            if d == "__pycache__":
+                path = os.path.join(dirpath, d)
+                try:
+                    shutil.rmtree(path)
+                except OSError:
+                    pass
 
 
 def _merge_dirs(src, dst, preserve=None):
