@@ -457,8 +457,14 @@ def start_auto_update_daemon():
                 if cfg.get("auto_update", False):
                     channel = cfg.get("channel", "stable")
                     branch = cfg.get("branch", "main")
-                    result = check_update(channel=channel, branch=branch)
-                    if result.get("available"):
+                    if channel == "nightly":
+                        # Nightly: no availability check — always reinstall
+                        _proceed = True
+                    else:
+                        result = check_update(channel=channel, branch=branch)
+                        _proceed = result.get("available", False)
+
+                    if _proceed:
                         logging.info("auto-update: update available, starting 5min countdown")
                         _send_auto_notif("info", "Auto-Update",
                                          "An update is available. The system will update automatically in 5 minutes.")
