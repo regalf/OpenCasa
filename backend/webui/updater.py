@@ -117,7 +117,7 @@ def do_update(channel="stable", branch="main"):
             new_source = tmpdir
         else:
             version = _download_stable(tmpdir)
-            new_source = os.path.join(tmpdir, f"OpenCasa-{version}")
+            new_source = tmpdir
 
         # Backup config
         config_backup = None
