@@ -444,15 +444,29 @@ def _compare_versions(v1, v2):
     return 0
 
 
-CHECK_INTERVAL = 21600  # 6 hours
-
 def start_auto_update_daemon():
     """Background thread: checks for updates and applies them if auto_update is enabled."""
     import threading
+    from datetime import datetime, timedelta
 
     def _loop():
         while True:
             try:
+                cfg = _get_config().get("update", {})
+                channel = cfg.get("channel", "stable")
+
+                # Nightly: wait until midnight before checking
+                # Stable: wait 6 hours between checks
+                if channel == "nightly":
+                    now = datetime.now()
+                    _midnight = (now + timedelta(days=1)).replace(
+                        hour=0, minute=0, second=0, microsecond=0
+                    )
+                    _delay = (_midnight - now).total_seconds()
+                else:
+                    _delay = 21600  # 6 hours
+                time.sleep(_delay)
+
                 cfg = _get_config().get("update", {})
                 if cfg.get("auto_update", False):
                     channel = cfg.get("channel", "stable")
@@ -476,7 +490,6 @@ def start_auto_update_daemon():
                         do_update(channel=channel, branch=branch)
             except Exception:
                 logging.exception("auto-update daemon error")
-            time.sleep(CHECK_INTERVAL)
 
     t = threading.Thread(target=_loop, daemon=True)
     t.start()

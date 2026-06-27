@@ -9,6 +9,11 @@ First stable release via GitHub Releases.
 - **Update system**: self-update with two channels (stable via tarball + nightly via git clone), config migration preserving master_key/root_password, frontend update panel
 - **install-release.sh**: curl one-liner install from latest stable release
 - **RELEASE.md, AGENTS_RELEASE.md**: release process documentation
+- **Auto-update daemon**: configurable via `update.auto_update` (disabled by default). Nightly: checks at midnight + applies with 5min/1min notifications. Stable: checks every 6 hours. Nightly skips availability check (always reinstalls)
+- **Git as dependency**: both installers check/install git via system package manager (`pkg_add`/`apt`/`apk`/`yum`)
+- **Pinned apps grid scroll**: `max-height: 260px` with `overflow-y: auto` when >6 pinned apps
+- **Update copy is flat**: matches installer layout (no subdirectories). `.git/`, `tests/`, `examples/` excluded from DATA_DIR
+- **`__pycache__` purge**: stale bytecode deleted after update to prevent version mismatch
 
 ### Bug Fixes
 
@@ -18,11 +23,15 @@ First stable release via GitHub Releases.
 - **Update API 403**: removed redundant `_is_root` guard — `do_update()` already checks OS-level root via `os.geteuid() != 0`; hidden Updates button from non-root users
 - **Notification API auth**: proxy notif handler (`_handle_notif_api`) always returned 401 because `_current_user` was never set (proxy bypasses `_check_auth()`). Now falls back to "root" when auth disabled, or extracts user from token
 - **Auth-disabled notifications**: `_check_auth()` set `_current_user = None` when auth disabled, causing notification storage/retrieval to silently fail (`get_notifications(None)` returns `[]`). Changed to `_current_user = "root"`
+- **Startup banner**: hardcoded `v1.0` replaced with `v{__version__}`
+- **App detail modal from dashboard**: `renderAppDetail()` moved to main render so the menu on pinned apps works
+- **Unused `re` import removed**: from `updater.py`
 
 ### Documentation
 
 - README: reordered install sections (release first, nightly second), added curl one-liner for release install
 - New `RELEASE.md`, `scripts/make_release.py`, `scripts/extract_changelog.py`
+- README: added auto-update note (disabled by default, 5min/1min notifications when enabled)
 
 ## v1.2.0 (2026-06-27)
 
