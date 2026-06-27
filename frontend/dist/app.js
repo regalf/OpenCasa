@@ -1221,6 +1221,7 @@ function render() {
       ${state.view === 'controlpanel' ? renderControlPanel() : ''}
       ${appTabId ? renderAppTab(appTabId) : ''}
     </section>
+    ${state.appDetail ? renderAppDetail(state.appDetail) : ''}
   `;
   updateNotifBadge();
 }
@@ -1498,7 +1499,6 @@ function renderFileManager() {
 }
 
 function renderAppManager() {
-  const d = state.appDetail;
   const instMsg = state.installedMsg;
   return `
     <h1 style="margin-bottom:1rem">${t('apps.title')}</h1>
@@ -1524,7 +1524,6 @@ function renderAppManager() {
           </div>`).join('')}
       </div>
     `}
-    ${d ? renderAppDetail(d) : ''}
     ${state.error ? `<p style="color:#f87171">${escapeHtml(state.error)}</p>` : ''}
   `;
 }
