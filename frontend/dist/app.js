@@ -1196,7 +1196,7 @@ function render() {
       <div class="upd-wrap">
         <button class="sidebar-upd-btn" onclick="event.stopPropagation();toggleUpdatePanel()">
           <span style="font-size:1.1rem">&#x21BB;</span>
-          <span>Updates</span>
+          <span>${t('update.title')}</span>
         </button>
         ${state.updatePanelOpen ? renderUpdatePanel() : ''}
       </div>
@@ -1315,7 +1315,7 @@ function renderDashboard() {
               <div class="bar-container"><div class="bar purple" id="mem-bar" style="width:${memPct}%"></div></div>
               <div class="details">
                 <span id="mem-detail">${usedMem} / ${totalMem} ${memLabel}</span>
-                <span id="mem-pct">${memPct.toFixed(1)}%</span>
+                <span id="mem-pct">${memPct.toFixed(1)}${t('dashboard.mem_percent')}</span>
               </div>
             </div>
           ` : ''}
@@ -1602,7 +1602,7 @@ function renderAppDetail(d) {
         <div class="detail-section">
           <strong>${t('apps.status')}:</strong>
           <span class="status-badge ${d.status}">${d.status}</span>
-          ${d.pid > 0 ? `<span class="pid-text">PID ${d.pid}</span>` : ''}
+          ${d.pid > 0 ? `<span class="pid-text">${t('apps.pid')} ${d.pid}</span>` : ''}
         </div>
         <div class="detail-actions">
           ${d.type === 'tool' || d.type === 'widget' ? `
@@ -1692,8 +1692,8 @@ function formatNotifTime(iso) {
   const d = new Date(iso);
   const diff = Math.floor((Date.now() - d.getTime()) / 1000);
   if (diff < 60) return t('notif.now');
-  if (diff < 3600) return Math.floor(diff / 60) + 'm';
-  if (diff < 86400) return Math.floor(diff / 3600) + 'h';
+  if (diff < 3600) return t('notif.min_ago', Math.floor(diff / 60));
+  if (diff < 86400) return t('notif.hour_ago', Math.floor(diff / 3600));
   return d.toLocaleDateString();
 }
 
@@ -1850,7 +1850,7 @@ function renderUpdatePanel() {
   return `
     <div class="update-panel">
       <div class="update-panel-header">
-        <h3>Updates</h3>
+        <h3>${t('update.title')}</h3>
         <button class="btn" style="font-size:.8rem" onclick="closeUpdatePanel()">✕</button>
       </div>
       <div class="update-panel-body">

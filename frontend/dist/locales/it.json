@@ -1,6 +1,7 @@
 {
   "app.title": "OpenCasa Dashboard",
   "app.brand": "OpenCasa",
+  "app.loading": "Caricamento...",
 
   "setup.title": "Benvenuto in OpenCasa",
   "setup.subtitle": "Crea il tuo primo account utente",
@@ -175,6 +176,7 @@
   "apps.ram_limit": "RAM max (MB)",
   "apps.unlimited": "illimitato",
   "apps.save_limits": "Salva",
+  "apps.pid": "PID",
 
   "dashboard.mem_percent": "%",
   "dashboard.network_down": "\u2193",
@@ -192,6 +194,8 @@
   "notif.delete": "Elimina",
   "notif.empty": "Nessuna notifica",
   "notif.now": "ora",
+  "notif.min_ago": "%sm",
+  "notif.hour_ago": "%sh",
 
   "update.check": "Controlla Aggiornamenti",
   "update.current": "Versione attuale",
@@ -214,5 +218,7 @@
   "update.failed": "Aggiornamento fallito",
   "update.success": "L'aggiornamento verra' applicato al riavvio. Riavvio in corso...",
   "update.install_nightly": "Installa Nuova Nightly",
-  "update.notification": "Aggiornamento disponibile: %s"
+  "update.notification": "Aggiornamento disponibile: %s",
+  "update.title": "Aggiornamenti",
+  "update.error": "Aggiornamento fallito"
 }
