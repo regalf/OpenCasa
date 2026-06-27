@@ -81,6 +81,8 @@ doas sh scripts/install.sh     # OpenBSD
 sudo sh scripts/install.sh     # Linux
 ```
 
+> **Note:** In-place updates from the UI (sidebar → Updates) require authentication as the `root` user. Non-root users cannot trigger system updates via the web interface.
+
 Manual steps (if you prefer not to use the installer):
 
 ```sh
