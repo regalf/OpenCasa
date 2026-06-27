@@ -138,8 +138,12 @@ def do_update(channel="stable", branch="main"):
         if os.path.isdir(DATA_DIR):
             shutil.copytree(DATA_DIR, backup_dir, symlinks=True)
 
-        # Copy new files (preserve database/, apps/, .git/)
-        _merge_dirs(new_source, DATA_DIR, preserve=["database", "apps", ".git"])
+        # Copy only essential files — never copy .git, tests/, examples/, etc.
+        for _name in ("backend", "frontend", "scripts"):
+            _s = os.path.join(new_source, _name)
+            _d = os.path.join(DATA_DIR, _name)
+            if os.path.isdir(_s):
+                shutil.copytree(_s, _d, symlinks=True, dirs_exist_ok=True)
         logging.info("file merge complete")
 
         # Purge stale bytecache so Python picks up new .py files
