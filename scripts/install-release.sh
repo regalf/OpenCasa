@@ -49,61 +49,87 @@ _tmp_tar=""
 if [ -z "$TARBALL" ]; then
   echo "${CYAN}Downloading latest release from GitHub...${NC}"
 
-  _dl() { curl -sL -H "User-Agent: OpenCasa-Installer/1.0" "$1" 2>/dev/null || wget -qO- --user-agent="OpenCasa-Installer/1.0" "$1" 2>/dev/null || ftp -o - "$1" 2>/dev/null; }
-  _dl_file() { curl -sL -H "User-Agent: OpenCasa-Installer/1.0" "$1" -o "$2" 2>/dev/null || wget -q --user-agent="OpenCasa-Installer/1.0" "$1" -O "$2" 2>/dev/null || ftp -o "$2" "$1" 2>/dev/null; }
+  # Use Python for all HTTP — it's the only guaranteed dependency
+  _py_download=$(python3 -c "
+import json, urllib.request, sys, os
 
-  _json=$(_dl "https://api.github.com/repos/regalf/OpenCasa/releases?per_page=1") || {
-    echo "${RED}Network error: cannot reach GitHub API. Specify tarball path manually.${NC}"
-    exit 1
-  }
+GH = 'https://api.github.com/repos/regalf/OpenCasa'
+HEADERS = {'User-Agent': 'OpenCasa-Installer/1.0'}
 
-  # Check if API returned an error (rate limit, etc.)
-  _err_msg=$(echo "$_json" | python3 -c "import sys,json; print(json.load(sys.stdin).get('message',''))" 2>/dev/null || echo "")
-  if [ -n "$_err_msg" ]; then
-    echo "${YELLOW}GitHub API: $_err_msg${NC}"
-    echo "${YELLOW}Falling back to direct tarball URL...${NC}"
-    # Try to get tag from the releases array
-    _tag=$(echo "$_json" | python3 -c "
-import sys, json
-d = json.load(sys.stdin)
-if isinstance(d, list) and len(d) > 0:
-    print(d[0].get('tag_name', ''))
-" 2>/dev/null || echo "")
-  else
-    _tag=$(echo "$_json" | python3 -c "
-import sys, json
-d = json.load(sys.stdin)
-if isinstance(d, list) and len(d) > 0:
-    print(d[0].get('tag_name', ''))
-" 2>/dev/null || echo "")
-  fi
+try:
+    req = urllib.request.Request(GH + '/releases?per_page=1', headers=HEADERS)
+    with urllib.request.urlopen(req, timeout=30) as r:
+        data = json.loads(r.read())
+except Exception as e:
+    print('FETCH_ERR:' + str(e), file=sys.stderr)
+    sys.exit(1)
 
-  if [ -z "$_tag" ]; then
-    echo "${RED}Cannot determine latest release version. Specify tarball path manually.${NC}"
-    echo "${YELLOW}Example: doas sh scripts/install-release.sh /path/to/OpenCasa-v1.3.0.tar.gz${NC}"
-    exit 1
-  fi
+if isinstance(data, dict) and data.get('message'):
+    print('API_ERR:' + data['message'], file=sys.stderr)
+    sys.exit(1)
 
-  # Try asset URL first, fall back to GitHub-generated tarball
-  _url=$(echo "$_json" | python3 -c "
-import sys, json
-d = json.load(sys.stdin)
-if isinstance(d, list) and len(d) > 0:
-    d = d[0]
-for a in d.get('assets', []):
+if not isinstance(data, list) or len(data) == 0:
+    print('NO_RELEASES', file=sys.stderr)
+    sys.exit(1)
+
+release = data[0]
+tag = release.get('tag_name', '')
+if not tag:
+    print('NO_TAG', file=sys.stderr)
+    sys.exit(1)
+
+# Try to find a .tar.gz asset
+url = ''
+for a in release.get('assets', []):
     if a['name'].endswith('.tar.gz'):
-        print(a['browser_download_url'])
+        url = a['browser_download_url']
         break
-" 2>/dev/null || echo "")
 
-  if [ -z "$_url" ]; then
-    _url="https://github.com/regalf/OpenCasa/archive/refs/tags/$_tag.tar.gz"
+if not url:
+    url = f'https://github.com/regalf/OpenCasa/archive/refs/tags/{tag}.tar.gz'
+
+print(tag)
+print(url)
+" 2>&1)
+
+  _dl_status=$?
+  _tag=$(echo "$_py_download" | sed -n '1p')
+  _url=$(echo "$_py_download" | sed -n '2p')
+  _py_err=$(echo "$_py_download" | tail -n +3)
+
+  if [ $_dl_status -ne 0 ]; then
+    _err_msg=$(echo "$_py_err" | grep -E '^FETCH_ERR:|^API_ERR:|^NO_RELEASES|^NO_TAG' | head -1)
+    case "$_err_msg" in
+      FETCH_ERR:*) echo "${RED}Network error:${NC} ${_err_msg#FETCH_ERR:}" ;;
+      API_ERR:*) echo "${RED}GitHub API:${NC} ${_err_msg#API_ERR:}" ;;
+      NO_RELEASES) echo "${RED}No releases found on GitHub.${NC}" ;;
+      NO_TAG) echo "${RED}Cannot determine latest version.${NC}" ;;
+      *) echo "${RED}Failed to fetch release info.${NC}" ;;
+    esac
+    echo "${YELLOW}Specify tarball manually: doas sh $0 /path/to/OpenCasa-vX.Y.Z.tar.gz${NC}"
+    exit 1
   fi
+
+  echo "  Found $_tag"
 
   _tmp_tar="$(mktemp /tmp/opencasa-release-XXXXXX.tar.gz)"
-  echo "  Downloading $_tag..."
-  _dl_file "$_url" "$_tmp_tar" || {
-    echo "${RED}Download failed at $_url${NC}"
+  echo "  Downloading..."
+  python3 -c "
+import urllib.request, sys
+url = sys.argv[1]
+dest = sys.argv[2]
+req = urllib.request.Request(url, headers={'User-Agent': 'OpenCasa-Installer/1.0'})
+try:
+    with urllib.request.urlopen(req, timeout=120) as src, open(dest, 'wb') as dst:
+        while True:
+            chunk = src.read(65536)
+            if not chunk: break
+            dst.write(chunk)
+except Exception as e:
+    print('DL_ERR:' + str(e), file=sys.stderr)
+    sys.exit(1)
+" "$_url" "$_tmp_tar" || {
+    echo "${RED}Download failed${NC}"
     exit 1
   }
   TARBALL="$_tmp_tar"
