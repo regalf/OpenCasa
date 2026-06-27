@@ -51,8 +51,25 @@ Platform detection is automatic via `system.platform: "auto"` in config. Overrid
 
 ## Quick Install
 
+### Quick Install (Release)
+
 ```sh
-# One-liner (choose your platform):
+# One-liner — downloads and runs the latest stable release installer:
+curl -sL https://raw.githubusercontent.com/regalf/OpenCasa/main/scripts/install-release.sh | doas sh   # OpenBSD
+curl -sL https://raw.githubusercontent.com/regalf/OpenCasa/main/scripts/install-release.sh | sudo sh   # Linux
+```
+
+The script fetches the latest release info from GitHub API, downloads the tarball, and installs.
+Or download the script and run it locally:
+```sh
+doas sh scripts/install-release.sh              # OpenBSD
+sudo sh scripts/install-release.sh              # Linux
+```
+
+### Quick Install (Nightly)
+
+```sh
+# One-liner — clones the latest main branch:
 curl -s https://raw.githubusercontent.com/regalf/OpenCasa/main/scripts/install.sh | doas sh   # OpenBSD
 curl -s https://raw.githubusercontent.com/regalf/OpenCasa/main/scripts/install.sh | sudo sh   # Linux
 ```

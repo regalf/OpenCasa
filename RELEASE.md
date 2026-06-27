@@ -47,15 +47,11 @@ gh release create v1.2.0 \
 
 ### 6. Install from release
 ```sh
-# Automated download + install
-doas sh scripts/install-release.sh
+# One-liner (auto-downloads latest release)
+doas sh -c "$(curl -sL https://raw.githubusercontent.com/regalf/OpenCasa/main/scripts/install-release.sh)"
 
-# Or manual with specific tarball
+# Or with a specific tarball
 doas sh scripts/install-release.sh /path/to/OpenCasa-v1.2.0.tar.gz
-
-# Or pipe from curl
-curl -sL https://github.com/regalf/OpenCasa/releases/download/v1.2.0/OpenCasa-v1.2.0.tar.gz | \
-  doas sh -c 'tar xzf - -C /tmp && sh /tmp/OpenCasa-v1.2.0/scripts/install-release.sh /tmp/OpenCasa-v1.2.0/OpenCasa-v1.2.0.tar.gz'
 ```
 
 ## Version numbering

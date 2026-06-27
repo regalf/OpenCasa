@@ -3,3 +3,6 @@ __pycache__/
 apps/*.json
 .DS_Store
 *.log
+
+# Agent instructions (not tracked, local only)
+AGENTS_RELEASE.md
