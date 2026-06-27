@@ -762,6 +762,8 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
             return self._send_json({"success": True})
 
         if path == "/api/v1/system/do-update":
+            if not self._is_root:
+                return self._send_error(403, "forbidden")
             data = self._json_body() or {}
             from .updater import do_update
             cfg = config.get("update", {})
