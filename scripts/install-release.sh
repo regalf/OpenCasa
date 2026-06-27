@@ -3,7 +3,7 @@
 # Usage: doas sh install-release.sh [tarball-path]
 #   tarball-path: path to OpenCasa-vX.Y.Z.tar.gz (optional, default: download from latest GitHub release)
 
-set -e
+set -u
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -22,6 +22,20 @@ else
   OS="linux"
 fi
 
+prompt_yes() {
+  _py_ans="y"
+  printf "%s [Y/n] " "$1" >&2
+  if [ -t 0 ]; then
+    read _py_ans
+  else
+    read _py_ans < /dev/tty 2>/dev/null || true
+  fi
+  case "$_py_ans" in
+    n|N|no|No) return 1 ;;
+    *) return 0 ;;
+  esac
+}
+
 ensure_root() {
   if [ "$(id -u)" != "0" ]; then
     if command -v doas >/dev/null 2>&1; then
@@ -35,6 +49,32 @@ ensure_root() {
   fi
 }
 
+check_git() {
+  printf "\n${BOLD}Checking git...${NC}\n"
+  if command -v git >/dev/null 2>&1; then
+    printf "  git %s ${GREEN}✓${NC}\n" "$(git --version 2>&1 | head -1)"
+    return 0
+  fi
+  printf "  ${YELLOW}git not found — required for nightly updates.${NC}\n"
+  if prompt_yes "Install git?"; then
+    if [ "$OS" = "openbsd" ]; then
+      pkg_add git 2>/dev/null || { printf "  ${RED}Failed to install git. Do it manually: doas pkg_add git${NC}\n"; return 1; }
+    elif command -v apt >/dev/null 2>&1; then
+      apt install -y git 2>/dev/null || { printf "  ${RED}Failed to install git.${NC}\n"; return 1; }
+    elif command -v apk >/dev/null 2>&1; then
+      apk add git 2>/dev/null || { printf "  ${RED}Failed to install git.${NC}\n"; return 1; }
+    elif command -v yum >/dev/null 2>&1; then
+      yum install -y git 2>/dev/null || { printf "  ${RED}Failed to install git.${NC}\n"; return 1; }
+    else
+      printf "  ${YELLOW}Unknown package manager. Install git manually.${NC}\n"
+      return 1
+    fi
+    printf "  ${GREEN}✓${NC} git installed\n"
+  else
+    printf "  ${YELLOW}Skipped. Nightly updates will use HTTP fallback (slower).${NC}\n"
+  fi
+}
+
 _cleanup() {
   [ -n "$_tmp_dir" ] && rm -rf "$_tmp_dir"
   [ -n "$_tmp_tar" ] && rm -f "$_tmp_tar"
@@ -42,6 +82,9 @@ _cleanup() {
 trap _cleanup EXIT
 
 ensure_root "$@"
+
+# Check for git before anything else
+check_git
 
 TARBALL="$1"
 _tmp_tar=""
@@ -173,22 +216,6 @@ fi
 # App user
 if ! id "$APP_USER" >/dev/null 2>&1; then
   echo "${YELLOW}User $APP_USER not found. Create manually: useradd -m $APP_USER && passwd $APP_USER${NC}"
-fi
-
-# Git
-if ! command -v git >/dev/null 2>&1; then
-  echo "${YELLOW}git not found — recommended for nightly updates.${NC}"
-  if [ "$OS" = "openbsd" ]; then
-    echo "  Install: doas pkg_add git"
-  elif command -v apt >/dev/null 2>&1; then
-    apt install -y git 2>/dev/null && echo "  ${GREEN}git installed${NC}" || echo "  ${YELLOW}Install manually: apt install git${NC}"
-  elif command -v apk >/dev/null 2>&1; then
-    apk add git 2>/dev/null && echo "  ${GREEN}git installed${NC}" || echo "  ${YELLOW}Install manually: apk add git${NC}"
-  elif command -v yum >/dev/null 2>&1; then
-    yum install -y git 2>/dev/null && echo "  ${GREEN}git installed${NC}" || echo "  ${YELLOW}Install manually: yum install git${NC}"
-  else
-    echo "  ${YELLOW}Install git manually.${NC}"
-  fi
 fi
 
 echo ""
