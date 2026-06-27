@@ -770,11 +770,31 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
                 branch=data.get("branch", cfg.get("branch", "main")),
             )
             if result.get("needs_restart"):
-                # Spawn restart in background
                 import threading
                 def _restart():
                     import time
-                    time.sleep(1)
+                    try:
+                        from .notifications import push_notification
+                        from .auth import list_users
+                        root_user = config.get("auth", {}).get("root_user", "root")
+                        usernames = {root_user}
+                        for u in list_users():
+                            usernames.add(u["username"])
+                        lang = config.get("language", "en")
+                        if lang == "it":
+                            title = "OpenCasa"
+                            msg = "Il pannello di controllo si riavvier\u00e0 tra circa 40 secondi per applicare l\u2019aggiornamento."
+                        else:
+                            title = "OpenCasa"
+                            msg = "The control panel will restart in about 40 seconds to apply the update."
+                        for uname in usernames:
+                            try:
+                                push_notification("system", title, msg, "warning", uname)
+                            except Exception:
+                                pass
+                    except Exception as e:
+                        logging.warning("failed to send restart notification: %s", e)
+                    time.sleep(40)
                     os.execv(sys.executable, [sys.executable] + sys.argv)
                 threading.Thread(target=_restart, daemon=True).start()
             return self._send_json(result)
