@@ -1192,6 +1192,7 @@ function render() {
       `).join('')}
       ` : ''}
       <div class="spacer"></div>
+      ${state.isRoot ? `
       <div class="upd-wrap">
         <button class="sidebar-upd-btn" onclick="event.stopPropagation();toggleUpdatePanel()">
           <span style="font-size:1.1rem">&#x21BB;</span>
@@ -1199,6 +1200,7 @@ function render() {
         </button>
         ${state.updatePanelOpen ? renderUpdatePanel() : ''}
       </div>
+      ` : ''}
       <div class="notif-wrap">
         <button class="sidebar-notif-btn" onclick="event.stopPropagation();toggleNotifPanel()">
           🔔<span class="notif-badge" id="notif-count"></span>
