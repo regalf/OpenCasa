@@ -175,6 +175,22 @@ if ! id "$APP_USER" >/dev/null 2>&1; then
   echo "${YELLOW}User $APP_USER not found. Create manually: useradd -m $APP_USER && passwd $APP_USER${NC}"
 fi
 
+# Git
+if ! command -v git >/dev/null 2>&1; then
+  echo "${YELLOW}git not found — recommended for nightly updates.${NC}"
+  if [ "$OS" = "openbsd" ]; then
+    echo "  Install: doas pkg_add git"
+  elif command -v apt >/dev/null 2>&1; then
+    apt install -y git 2>/dev/null && echo "  ${GREEN}git installed${NC}" || echo "  ${YELLOW}Install manually: apt install git${NC}"
+  elif command -v apk >/dev/null 2>&1; then
+    apk add git 2>/dev/null && echo "  ${GREEN}git installed${NC}" || echo "  ${YELLOW}Install manually: apk add git${NC}"
+  elif command -v yum >/dev/null 2>&1; then
+    yum install -y git 2>/dev/null && echo "  ${GREEN}git installed${NC}" || echo "  ${YELLOW}Install manually: yum install git${NC}"
+  else
+    echo "  ${YELLOW}Install git manually.${NC}"
+  fi
+fi
+
 echo ""
 echo "${GREEN}${BOLD}OpenCasa installed from release!${NC}"
 echo ""

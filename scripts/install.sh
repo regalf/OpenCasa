@@ -237,6 +237,32 @@ setup_service() {
   fi
 }
 
+check_git() {
+  printf "\n${BOLD}Checking git...${NC}\n"
+  if command -v git >/dev/null 2>&1; then
+    printf "  git %s ${GREEN}✓${NC}\n" "$(git --version 2>&1 | head -1)"
+    return 0
+  fi
+  printf "  ${YELLOW}git not found — required for nightly updates.${NC}\n"
+  if prompt_yes "Install git?"; then
+    if [ "$OS" = "openbsd" ]; then
+      pkg_add git 2>/dev/null || { printf "  ${RED}Failed to install git. Do it manually: doas pkg_add git${NC}\n"; return 1; }
+    elif command -v apt >/dev/null 2>&1; then
+      apt install -y git 2>/dev/null || { printf "  ${RED}Failed to install git.${NC}\n"; return 1; }
+    elif command -v apk >/dev/null 2>&1; then
+      apk add git 2>/dev/null || { printf "  ${RED}Failed to install git.${NC}\n"; return 1; }
+    elif command -v yum >/dev/null 2>&1; then
+      yum install -y git 2>/dev/null || { printf "  ${RED}Failed to install git.${NC}\n"; return 1; }
+    else
+      printf "  ${YELLOW}Unknown package manager. Install git manually.${NC}\n"
+      return 1
+    fi
+    printf "  ${GREEN}✓${NC} git installed\n"
+  else
+    printf "  ${YELLOW}Skipped. Nightly updates will use HTTP fallback (slower).${NC}\n"
+  fi
+}
+
 check_python() {
   printf "\n${BOLD}Checking Python...${NC}\n"
   if command -v python3 >/dev/null 2>&1; then
@@ -325,6 +351,7 @@ if ! prompt_yes "Proceed with installation?"; then
 fi
 
 check_python
+check_git
 install_files
 install_example_apps
 setup_config
