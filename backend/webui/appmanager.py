@@ -36,10 +36,11 @@ _WIDGET_INTERVAL = 10
 
 
 def init():
-    global APPS_DIR, APP_USER
+    global APPS_DIR, APP_USER, _cache, _cache_ts, _DATA_DIR
     import sys
     pkg = sys.modules.get('.'.join(__name__.split('.')[:-1]))
     data_dir = getattr(pkg, 'DATA_DIR', '/usr/local/webui') if pkg else '/usr/local/webui'
+    _DATA_DIR = data_dir
     APPS_DIR = config.get('apps_dir') or os.path.join(data_dir, 'apps')
     os.makedirs(APPS_DIR, exist_ok=True)
     APP_USER = config.get('app_user', 'opencasa')
@@ -455,6 +456,7 @@ def run_app(app_id, username=None):
     env['OPENCASA_CONTEXT'] = ctx
     env['OPENCASA_ACTION'] = 'widget'
     env['OPENCASA_APP_DIR'] = app['path']
+    env['OPENCASA_DATA_DIR'] = _DATA_DIR or ''
     env['PYTHONDONTWRITEBYTECODE'] = '1'
     if _APP_USER_HOME:
         env['HOME'] = _APP_USER_HOME
@@ -656,6 +658,7 @@ def start_web_app(app_id, username=None):
     env['OPENCASA_CONTEXT'] = ctx
     env['OPENCASA_APP_PORT'] = str(effective_port)
     env['OPENCASA_APP_DIR'] = app['path']
+    env['OPENCASA_DATA_DIR'] = _DATA_DIR or ''
     env['PYTHONDONTWRITEBYTECODE'] = '1'
     if _APP_USER_HOME:
         env['HOME'] = _APP_USER_HOME

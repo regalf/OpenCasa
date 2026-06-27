@@ -5,8 +5,8 @@ import http.server, json, os, subprocess, socket, mimetypes, threading, time, ur
 HOST = '127.0.0.1'
 PORT = int(os.environ.get('OPENCASA_APP_PORT', '18995'))
 DIR = os.path.dirname(os.path.abspath(__file__))
-HOME = os.environ.get('HOME', '/home/opencasa')
-SERVER_DIR = os.path.join(HOME, 'mc-server')
+DATA_DIR = os.environ.get('OPENCASA_DATA_DIR', '/usr/local/webui')
+SERVER_DIR = os.path.join(DATA_DIR, 'mc-server')
 
 def _find_binary():
     for name in ('bareiron', 'bareiron.exe', 'bareiron-macppc'):
