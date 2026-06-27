@@ -1181,11 +1181,13 @@ function render() {
       `).join('')}
       ` : ''}
       <div class="spacer"></div>
-      <button class="sidebar-notif-btn sidebar-upd-btn" onclick="toggleUpdatePanel()">
-        <span style="font-size:1.1rem">&#x21BB;</span>
-        <span>Updates</span>
-      </button>
-      ${state.updatePanelOpen ? renderUpdatePanel() : ''}
+      <div class="upd-wrap">
+        <button class="sidebar-upd-btn" onclick="toggleUpdatePanel()">
+          <span style="font-size:1.1rem">&#x21BB;</span>
+          <span>Updates</span>
+        </button>
+        ${state.updatePanelOpen ? renderUpdatePanel() : ''}
+      </div>
       <div class="notif-wrap">
         <button class="sidebar-notif-btn" onclick="toggleNotifPanel()">
           🔔<span class="notif-badge" id="notif-count"></span>
@@ -1734,7 +1736,7 @@ function closeNotifPanel() {
 document.addEventListener('click', function(e) {
   if (state.notifPanelOpen) {
     const p = document.querySelector('.notif-panel');
-    const b = document.querySelector('.sidebar-notif-btn');
+    const b = document.querySelector('.notif-wrap > .sidebar-notif-btn');
     if (p && !p.contains(e.target) && b && !b.contains(e.target)) {
       state.notifPanelOpen = false;
       render();
@@ -1742,7 +1744,7 @@ document.addEventListener('click', function(e) {
   }
   if (state.updatePanelOpen) {
     const p = document.querySelector('.update-panel');
-    const b = document.querySelector('.sidebar-upd-btn');
+    const b = document.querySelector('.upd-wrap > .sidebar-upd-btn');
     if (p && !p.contains(e.target) && b && !b.contains(e.target)) {
       state.updatePanelOpen = false;
       render();
