@@ -1908,6 +1908,7 @@ function renderUpdatePanel() {
           </button>`}
           `}
         ` : ''}
+      <div class="update-auto-note">${t('update.auto_disabled')}</div>
       </div>
     </div>
   `;

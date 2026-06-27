@@ -16,6 +16,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import time
 import urllib.request
 import urllib.error
 
@@ -441,3 +442,54 @@ def _compare_versions(v1, v2):
     if p1 < p2:
         return -1
     return 0
+
+
+CHECK_INTERVAL = 21600  # 6 hours
+
+def start_auto_update_daemon():
+    """Background thread: checks for updates and applies them if auto_update is enabled."""
+    import threading
+
+    def _loop():
+        while True:
+            try:
+                cfg = _get_config().get("update", {})
+                if cfg.get("auto_update", False):
+                    channel = cfg.get("channel", "stable")
+                    branch = cfg.get("branch", "main")
+                    result = check_update(channel=channel, branch=branch)
+                    if result.get("available"):
+                        logging.info("auto-update: update available, starting 5min countdown")
+                        _send_auto_notif("info", "Auto-Update",
+                                         "An update is available. The system will update automatically in 5 minutes.")
+                        time.sleep(240)  # 4 min
+                        _send_auto_notif("info", "Auto-Update",
+                                         "The update will be applied in 1 minute. The panel will restart shortly after.")
+                        time.sleep(60)   # 1 min
+                        logging.info("auto-update: applying update now")
+                        do_update(channel=channel, branch=branch)
+            except Exception:
+                logging.exception("auto-update daemon error")
+            time.sleep(CHECK_INTERVAL)
+
+    t = threading.Thread(target=_loop, daemon=True)
+    t.start()
+
+
+def _send_auto_notif(severity, title, message):
+    """Send a notification to all users."""
+    try:
+        from .notifications import push_notification
+        from .auth import list_users
+        from . import config
+        root_user = config.get("auth", {}).get("root_user", "root")
+        usernames = {root_user}
+        for u in list_users():
+            usernames.add(u["username"])
+        for uname in usernames:
+            try:
+                push_notification("system", title, message, severity, uname)
+            except Exception:
+                pass
+    except Exception as e:
+        logging.warning("auto-update notification failed: %s", e)

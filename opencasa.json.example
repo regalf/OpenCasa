@@ -30,7 +30,8 @@
   },
   "update": {
     "channel": "stable",
-    "branch": "main"
+    "branch": "main",
+    "auto_update": false
   },
   "apps_dir": "/usr/local/webui/apps",
   "app_user": "opencasa",

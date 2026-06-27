@@ -220,5 +220,6 @@
   "update.install_nightly": "Install New Nightly",
   "update.notification": "Update available: %s",
   "update.title": "Updates",
-  "update.error": "Update failed"
+  "update.error": "Update failed",
+  "update.auto_disabled": "Automatic updates are disabled by default. Enable them in /etc/opencasa.json (update.auto_update)."
 }

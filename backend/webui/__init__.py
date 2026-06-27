@@ -40,7 +40,7 @@ DEFAULT_CONFIG = {
     "apps_autostart": True,
     "app_user": "opencasa",
     "apps": {"max_processes": 10, "ports": {}, "port_pool": [19000,19001,19002,19003,19004,19005,19006,19007,19008,19009]},
-    "update": {"channel": "stable", "branch": "main"},
+    "update": {"channel": "stable", "branch": "main", "auto_update": False},
 }
 
 __version__ = "1.3.0"
@@ -983,6 +983,10 @@ def main():
 
     signal.signal(signal.SIGTERM, _stop)
     signal.signal(signal.SIGINT, _stop)
+
+    # Start auto-update daemon (checks every 6h if update.auto_update is enabled)
+    from .updater import start_auto_update_daemon
+    start_auto_update_daemon()
 
     while running:
         try:
