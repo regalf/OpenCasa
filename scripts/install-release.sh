@@ -49,33 +49,61 @@ _tmp_tar=""
 if [ -z "$TARBALL" ]; then
   echo "${CYAN}Downloading latest release from GitHub...${NC}"
 
-  _dl() { curl -sL "$1" 2>/dev/null || wget -qO- "$1" 2>/dev/null || ftp -o - "$1" 2>/dev/null; }
-  _dl_file() { curl -sL "$1" -o "$2" 2>/dev/null || wget -q "$1" -O "$2" 2>/dev/null || ftp -o "$2" "$1" 2>/dev/null; }
+  _dl() { curl -sL -H "User-Agent: OpenCasa-Installer/1.0" "$1" 2>/dev/null || wget -qO- --user-agent="OpenCasa-Installer/1.0" "$1" 2>/dev/null || ftp -o - "$1" 2>/dev/null; }
+  _dl_file() { curl -sL -H "User-Agent: OpenCasa-Installer/1.0" "$1" -o "$2" 2>/dev/null || wget -q --user-agent="OpenCasa-Installer/1.0" "$1" -O "$2" 2>/dev/null || ftp -o "$2" "$1" 2>/dev/null; }
 
-  _json=$(_dl "https://api.github.com/repos/regalf/OpenCasa/releases/latest") || {
-    echo "${RED}Failed to fetch latest release info. Specify tarball path manually.${NC}"
+  _json=$(_dl "https://api.github.com/repos/regalf/OpenCasa/releases?per_page=1") || {
+    echo "${RED}Network error: cannot reach GitHub API. Specify tarball path manually.${NC}"
     exit 1
   }
 
-  _tag=$(echo "$_json" | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'])" 2>/dev/null || echo "")
+  # Check if API returned an error (rate limit, etc.)
+  _err_msg=$(echo "$_json" | python3 -c "import sys,json; print(json.load(sys.stdin).get('message',''))" 2>/dev/null || echo "")
+  if [ -n "$_err_msg" ]; then
+    echo "${YELLOW}GitHub API: $_err_msg${NC}"
+    echo "${YELLOW}Falling back to direct tarball URL...${NC}"
+    # Try to get tag from the releases array
+    _tag=$(echo "$_json" | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+if isinstance(d, list) and len(d) > 0:
+    print(d[0].get('tag_name', ''))
+" 2>/dev/null || echo "")
+  else
+    _tag=$(echo "$_json" | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+if isinstance(d, list) and len(d) > 0:
+    print(d[0].get('tag_name', ''))
+" 2>/dev/null || echo "")
+  fi
+
   if [ -z "$_tag" ]; then
-    echo "${RED}Failed to parse latest release tag. Specify tarball path manually.${NC}"
+    echo "${RED}Cannot determine latest release version. Specify tarball path manually.${NC}"
+    echo "${YELLOW}Example: doas sh scripts/install-release.sh /path/to/OpenCasa-v1.3.0.tar.gz${NC}"
     exit 1
   fi
 
+  # Try asset URL first, fall back to GitHub-generated tarball
   _url=$(echo "$_json" | python3 -c "
 import sys, json
 d = json.load(sys.stdin)
+if isinstance(d, list) and len(d) > 0:
+    d = d[0]
 for a in d.get('assets', []):
     if a['name'].endswith('.tar.gz'):
         print(a['browser_download_url'])
         break
-" 2>/dev/null || echo "https://github.com/regalf/OpenCasa/releases/download/$_tag/OpenCasa-$_tag.tar.gz")
+" 2>/dev/null || echo "")
+
+  if [ -z "$_url" ]; then
+    _url="https://github.com/regalf/OpenCasa/archive/refs/tags/$_tag.tar.gz"
+  fi
 
   _tmp_tar="$(mktemp /tmp/opencasa-release-XXXXXX.tar.gz)"
   echo "  Downloading $_tag..."
   _dl_file "$_url" "$_tmp_tar" || {
-    echo "${RED}Download failed${NC}"
+    echo "${RED}Download failed at $_url${NC}"
     exit 1
   }
   TARBALL="$_tmp_tar"
