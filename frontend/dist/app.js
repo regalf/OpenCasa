@@ -1193,14 +1193,14 @@ function render() {
       ` : ''}
       <div class="spacer"></div>
       <div class="upd-wrap">
-        <button class="sidebar-upd-btn" onclick="toggleUpdatePanel()">
+        <button class="sidebar-upd-btn" onclick="event.stopPropagation();toggleUpdatePanel()">
           <span style="font-size:1.1rem">&#x21BB;</span>
           <span>Updates</span>
         </button>
         ${state.updatePanelOpen ? renderUpdatePanel() : ''}
       </div>
       <div class="notif-wrap">
-        <button class="sidebar-notif-btn" onclick="toggleNotifPanel()">
+        <button class="sidebar-notif-btn" onclick="event.stopPropagation();toggleNotifPanel()">
           🔔<span class="notif-badge" id="notif-count"></span>
           <span>${t('notif.title')}</span>
         </button>
