@@ -70,7 +70,15 @@ def _handle_notif_api(handler, app_id, rest, path):
 
     username = getattr(handler, '_current_user', None)
     if not username:
-        return handler._send_error(401, "not authenticated")
+        if not config.get("auth", {}).get("enabled", True):
+            username = "root"
+        else:
+            payload = handler._get_user()
+            if payload:
+                username = payload.get("username")
+                handler._current_user = username
+        if not username:
+            return handler._send_error(401, "not authenticated")
 
     if handler.command == "POST":
         if rest == "api/v1/notify":

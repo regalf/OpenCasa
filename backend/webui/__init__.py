@@ -163,7 +163,7 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
 
     def _check_auth(self):
         if not config["auth"]["enabled"]:
-            self._current_user = None
+            self._current_user = "root"
             self._is_root = True
             return True
         payload = self._get_user()

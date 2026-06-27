@@ -15,6 +15,9 @@ First stable release via GitHub Releases.
 - `saveResourceLimits` not defined (missing window export) — now exposed globally
 - **Update panel**: missing `.update-panel` CSS selector prevented panel from displaying as popover — appeared inline in sidebar instead
 - **Nightly update**: `doNightlyUpdate()` skipped install when local and remote git hashes matched; now always reinstalls without availability check
+- **Update API 403**: removed redundant `_is_root` guard — `do_update()` already checks OS-level root via `os.geteuid() != 0`; hidden Updates button from non-root users
+- **Notification API auth**: proxy notif handler (`_handle_notif_api`) always returned 401 because `_current_user` was never set (proxy bypasses `_check_auth()`). Now falls back to "root" when auth disabled, or extracts user from token
+- **Auth-disabled notifications**: `_check_auth()` set `_current_user = None` when auth disabled, causing notification storage/retrieval to silently fail (`get_notifications(None)` returns `[]`). Changed to `_current_user = "root"`
 
 ### Documentation
 
