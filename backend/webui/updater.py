@@ -110,6 +110,7 @@ def do_update(channel="stable", branch="main"):
 
     tmpdir = None
     try:
+        logging.info("starting %s update (branch=%s)", channel, branch)
         tmpdir = tempfile.mkdtemp(prefix=TMP_PREFIX)
 
         if channel == "nightly":
@@ -134,6 +135,7 @@ def do_update(channel="stable", branch="main"):
 
         # Copy new files (preserve database/ and apps/)
         _merge_dirs(new_source, DATA_DIR, preserve=["database", "apps"])
+        logging.info("file merge complete")
 
         # Purge stale bytecache so Python picks up new .py files
         _purge_pycache(DATA_DIR)
@@ -291,7 +293,9 @@ def _update_nightly(tmpdir, branch):
             stderr=subprocess.DEVNULL,
             timeout=120,
         )
+        logging.info("nightly update: git clone succeeded")
     except (subprocess.CalledProcessError, FileNotFoundError):
+        logging.info("nightly update: git unavailable, using http fallback")
         # Fallback: download tarball of branch
         tarball_url = f"{GH_API}/tarball/{branch}"
         tarball_path = os.path.join(os.path.dirname(tmpdir), "branch.tar.gz")

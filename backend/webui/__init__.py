@@ -968,7 +968,7 @@ def main():
   ██   ██  ██████   ██████   ████ ██  ██       ███████   █████   ███████
   ██   ██  ██       ██       ██ ████  ██       ██   ██       ██  ██   ██
    █████   ██       ███████  ██  ███   █████   ██   ██   █████   ██   ██""" + f"""
-  OpenCasa v1.0 — Server Manager for {_os}/{_arch}""")
+  OpenCasa v{__version__} — Server Manager for {_os}/{_arch}""")
 
     server = ThreadedHTTPServer((host, port), OpenCasaHandler)
     server.socket.settimeout(1.0)
