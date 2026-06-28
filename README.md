@@ -39,6 +39,7 @@ Platform detection is automatic via `system.platform: "auto"` in config. Overrid
 - **Multi-user** — root + regular users, configurable root account, PBKDF2 password hashing
 - **Encrypted Database** — per-value HMAC-CTR encrypted SQLite key-value store
 - **Authentication** — JWT-based login with configurable session TTL, optional (can disable)
+- **Self-Update** — two-channel update system (stable via GitHub Releases, nightly via git clone), auto-update daemon with midnight scheduling for nightly
 - **Rate Limiting** — 10 failed login attempts per IP in 5 minutes
 - **i18n** — English and Italian (configurable via `ui.language`)
 - **Mobile-friendly** — hamburger menu, responsive layout
@@ -83,7 +84,7 @@ sudo sh scripts/install.sh     # Linux
 
 > **Note:** In-place updates from the UI (sidebar → Updates) require authentication as the `root` user. Non-root users cannot trigger system updates via the web interface.
 >
-> Automatic updates (`update.auto_update` in `/etc/opencasa.json`) are **disabled by default**. When enabled, the daemon checks every 6 hours and sends an info notification 5 minutes and 1 minute before applying the update. The existing 40-second restart countdown still applies.
+> Automatic updates (`update.auto_update` in `/etc/opencasa.json`) are **disabled by default**. When enabled on the **stable** channel, the daemon checks every 6 hours and sends an info notification 5 minutes and 1 minute before applying the update. On the **nightly** channel, the daemon schedules the check at midnight and applies the update around 00:05 to avoid interrupting daytime use. The existing 40-second restart countdown still applies.
 
 Manual steps (if you prefer not to use the installer):
 
@@ -134,6 +135,9 @@ systemctl enable --now webui  # Linux
 | `app_user` | `"opencasa"` | System user for running apps |
 | `master_key` | *(auto-generated)* | Base64 key for encrypted user database |
 | `apps_autostart` | `true` | Auto-start web apps on boot |
+| `update.channel` | `"stable"` | Update channel (`"stable"` or `"nightly"`) |
+| `update.branch` | `"main"` | Git branch for nightly updates |
+| `update.auto_update` | `false` | Enable automatic updates (daemon checks every 6h for stable, at midnight for nightly) |
 
 ## App System
 
@@ -232,6 +236,9 @@ Complete API reference in [API.md](API.md). Summary:
 | `/api/v1/db/*` | * | Yes | User-scoped encrypted key-value |
 | `/api/v1/notifications` | GET | Yes | List notifications |
 | `/api/v1/notify` | POST | Yes | Push notification |
+| `/api/v1/system/check-update` | GET | Yes | Check for updates (root only) |
+| `/api/v1/system/do-update` | POST | Yes | Apply update and restart (root only) |
+| `/api/v1/apps/<id>/resource-limits` | POST | Yes | Set per-user resource limits (CPU s, RAM MB) |
 | `/app/<id>/<path>` | * | No | Web app proxy |
 
 ## Architecture
@@ -239,11 +246,16 @@ Complete API reference in [API.md](API.md). Summary:
 ```
 Browser  ◄──── HTTP ────►  webui.py (Python stdlib HTTP server)
                                 │
-                    ┌───────────┼──────────────┐
-                    ▼           ▼              ▼
-              auth.py      system.py     appmanager.py
-              JWT/HMAC     CPU/mem via    exec/proxy/
-                           vmstat/proc    cache/perms
+            ┌───────────┬───────┼───────────┬───────────┐
+            ▼           ▼       ▼           ▼           ▼
+       auth.py     system.py  appmanager  filemanager  updater.py
+       JWT/HMAC    CPU/mem/   .py         .py          check/do/
+                   net/disk   exec/proxy/ file CRUD/   auto-
+                              cache/perms upload/      update
+                              sandbox     prefixes     daemon
+            ▼
+       notifications.py
+       database.py       ◄── encrypted SQLite KV store
 ```
 
 ## Design for Old Hardware
@@ -294,6 +306,7 @@ backend/webui/            # Python package
   database.py             # Encrypted SQLite KV store
   notifications.py        # Notification persistence
   proxy.py                # Web app reverse proxy
+  updater.py              # Update system (two channels, auto-update daemon)
 frontend/dist/            # Built frontend (static files)
   index.html, style.css, app.js, favicon.svg
   locales/                # en.json, it.json
