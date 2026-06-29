@@ -292,10 +292,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 after = 0
             with _output_lock:
                 total = len(_output_buf)
-                if 0 < after < total:
+                if after > 0 and after < total:
                     lines = list(_output_buf[after:])
-                else:
+                elif after <= 0:
                     lines = list(_output_buf[-n:])
+                else:
+                    lines = []
             self._json({'lines': lines, 'total': total})
         elif path == '/api/releases':
             self._json(_fetch_releases())

@@ -196,6 +196,7 @@ byId('btn-clear-output').addEventListener('click', function() {
 
 var _outputErrorCount = 0;
 var _lastOutputTotal = 0;
+var _fetchingOutput = false;
 
 function appendOutput(lines) {
   var el = byId('output-box');
@@ -210,6 +211,8 @@ function appendOutput(lines) {
 }
 
 function pollOutput() {
+  if (_fetchingOutput) return;
+  _fetchingOutput = true;
   fetch(API + '/api/output?after=' + _lastOutputTotal).then(function(r) { return r.json(); }).then(function(d) {
     _outputErrorCount = 0;
     if (d.lines && d.lines.length > 0) appendOutput(d.lines);
@@ -217,6 +220,7 @@ function pollOutput() {
       if (d.total < _lastOutputTotal) {
         _lastOutputTotal = 0;
         byId('output-box').innerHTML = '';
+        _fetchingOutput = false;
         pollOutput();
         return;
       }
@@ -227,21 +231,21 @@ function pollOutput() {
     if (_outputErrorCount === 1) {
       byId('output-box').innerHTML = '<span class="dim">Output unavailable — check if the server is running.</span>';
     }
-  });
+  }).then(function() { _fetchingOutput = false; });
 }
 
 function startOutputPoll() {
   stopOutputPoll();
   _outputErrorCount = 0;
   _lastOutputTotal = 0;
-  _outputTimer = setInterval(pollOutput, 2000);
+  byId('output-box').innerHTML = '<span class="dim">Waiting for server output...</span>';
   fetch(API + '/api/status').then(function(r) { return r.json(); }).then(function(d) {
     if (!d.running) {
       byId('output-box').innerHTML = '<span class="dim">Server not running. Start the server to see output.</span>';
-    } else {
-      pollOutput();
     }
   }).catch(function() {});
+  _outputTimer = setInterval(pollOutput, 2000);
+  pollOutput();
 }
 
 function stopOutputPoll() {
