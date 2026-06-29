@@ -281,11 +281,22 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 self._json({'error': f'failed to read config: {e}', 'exists': False, 'properties': {}}, 500)
         elif path == '/api/output':
             n_str = self._param('lines', '100')
+            after_str = self._param('after', '0')
             try:
                 n = max(1, min(500, int(n_str)))
             except ValueError:
                 n = 100
-            self._json({'lines': _get_output(n)})
+            try:
+                after = max(0, int(after_str))
+            except ValueError:
+                after = 0
+            with _output_lock:
+                total = len(_output_buf)
+                if 0 < after < total:
+                    lines = list(_output_buf[after:])
+                else:
+                    lines = list(_output_buf[-n:])
+            self._json({'lines': lines, 'total': total})
         elif path == '/api/releases':
             self._json(_fetch_releases())
         elif path == '/api/installed':
