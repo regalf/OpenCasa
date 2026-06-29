@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """bareiron server manager — start/stop, server.conf editor, output viewer, version manager."""
-import http.server, json, os, subprocess, socket, mimetypes, threading, time, urllib.request, urllib.parse, urllib.error, signal, re, resource
+import http.server, json, os, subprocess, socket, mimetypes, threading, time, urllib.request, urllib.parse, urllib.error, signal, re, resource, pty
 
 HOST = '127.0.0.1'
 PORT = int(os.environ.get('OPENCASA_APP_PORT', '18995'))
@@ -27,16 +27,28 @@ _MAX_OUTPUT = 500
 def _ensure_dir():
     os.makedirs(SERVER_DIR, exist_ok=True)
 
-def _reader_thread(proc):
-    """Read stdout from the server process into a ring buffer."""
-    while True:
-        line = proc.stdout.readline()
-        if not line:
-            break
-        with _output_lock:
-            _output_buf.append(line.rstrip('\n\r'))
-            if len(_output_buf) > _MAX_OUTPUT:
-                _output_buf[:] = _output_buf[-_MAX_OUTPUT:]
+def _reader_thread(fd):
+    """Read from a PTY master fd into a ring buffer."""
+    buf = b''
+    try:
+        while True:
+            data = os.read(fd, 4096)
+            if not data:
+                break
+            buf += data
+            while b'\n' in buf:
+                line, buf = buf.split(b'\n', 1)
+                with _output_lock:
+                    _output_buf.append(line.decode('utf-8', 'replace').rstrip('\r'))
+                    if len(_output_buf) > _MAX_OUTPUT:
+                        _output_buf[:] = _output_buf[-_MAX_OUTPUT:]
+    except OSError:
+        pass
+    finally:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
 
 def _is_running():
     if _server_proc and _server_proc.poll() is None:
@@ -149,13 +161,15 @@ def _start():
                 return {'error': f'binary not executable: {e}'}
         _output_buf.clear()
         try:
+            master_fd, slave_fd = pty.openpty()
             _server_proc = subprocess.Popen(
                 [bp],
                 cwd=SERVER_DIR,
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                stdout=slave_fd, stderr=slave_fd,
                 preexec_fn=os.setpgrp,
             )
-            t = threading.Thread(target=_reader_thread, args=(_server_proc,), daemon=True)
+            os.close(slave_fd)
+            t = threading.Thread(target=_reader_thread, args=(master_fd,), daemon=True)
             t.start()
             time.sleep(0.5)
             if _server_proc.poll() is not None:
