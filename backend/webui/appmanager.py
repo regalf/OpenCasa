@@ -145,8 +145,8 @@ def _enforce_permissions(permissions, app_dir=None):
 
 def _set_resource_limits(max_memory_mb=None, max_cpu_seconds=None):
     import resource
-    mem = max_memory_mb if max_memory_mb is not None else 256
-    cpu = max_cpu_seconds if max_cpu_seconds is not None else 30
+    mem = max_memory_mb if max_memory_mb is not None else 0
+    cpu = max_cpu_seconds if max_cpu_seconds is not None else 0
     if cpu > 0:
         try:
             resource.setrlimit(resource.RLIMIT_CPU, (cpu, cpu))

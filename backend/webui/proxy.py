@@ -7,7 +7,7 @@ import urllib.request
 import urllib.error
 
 from . import config
-from .appmanager import get_app
+from .appmanager import get_app, stop_web_app
 
 
 def handle_app_proxy(handler, path):
@@ -60,6 +60,13 @@ def handle_app_proxy(handler, path):
         handler.end_headers()
         body = e.read()
         handler.wfile.write(body if isinstance(body, bytes) else body.encode())
+    except (urllib.error.URLError, ConnectionRefusedError, ConnectionError) as e:
+        logging.warning("proxy connection failed for app %s: %s", app_id, e)
+        try:
+            stop_web_app(app_id)
+        except Exception:
+            pass
+        handler._send_error(502, f"app not reachable: {e}")
     except Exception as e:
         handler._send_error(502, str(e))
 
