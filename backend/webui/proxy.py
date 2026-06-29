@@ -60,8 +60,8 @@ def handle_app_proxy(handler, path):
         handler.end_headers()
         body = e.read()
         handler.wfile.write(body if isinstance(body, bytes) else body.encode())
-    except (urllib.error.URLError, ConnectionRefusedError, ConnectionError) as e:
-        logging.warning("proxy connection failed for app %s: %s", app_id, e)
+    except (ConnectionRefusedError, ConnectionError) as e:
+        logging.warning("proxy connection refused for app %s: %s", app_id, e)
         try:
             stop_web_app(app_id)
         except Exception:

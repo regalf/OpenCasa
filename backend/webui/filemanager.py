@@ -4,6 +4,7 @@ import datetime
 import json
 import mimetypes
 import os
+import pwd
 import re
 import shutil
 
@@ -230,8 +231,19 @@ def init_user_folders():
         if not os.path.isdir(p):
             try:
                 os.mkdir(p)
+                _chown_app_user(p)
             except OSError:
                 pass
+
+
+def _chown_app_user(path):
+    """Change ownership of path to the configured app_user."""
+    try:
+        app_user = config.get('app_user', 'opencasa')
+        pw = pwd.getpwnam(app_user)
+        os.chown(path, pw.pw_uid, pw.pw_gid)
+    except Exception:
+        pass
 
 
 def handle_list_prefixes(handler):
