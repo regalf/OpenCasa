@@ -92,6 +92,10 @@ def _read_conf_flat():
     return props
 
 def _write_conf(new_props):
+    if '_raw' in new_props:
+        with open(CONF_PATH, 'w') as f:
+            f.write(new_props['_raw'])
+        return
     lines = []
     if os.path.isfile(CONF_PATH):
         with open(CONF_PATH) as f:

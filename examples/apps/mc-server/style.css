@@ -61,15 +61,11 @@ h2 { margin-bottom: 12px; font-size: 18px; font-weight: 600; color: #f1f5f9; }
 .release-card .rel-date { color: #64748b; font-size: 11px; }
 .release-card .rel-actions { margin-left: auto; display: flex; gap: 6px; }
 
-.config-editor { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 12px; flex: 1; display: flex; flex-direction: column; }
-#config-list { flex: 1; overflow-y: auto; margin-bottom: 8px; }
-.config-row { display: flex; gap: 8px; margin-bottom: 6px; align-items: center; }
-.config-row .ckey { flex: 0 0 200px; font-size: 12px; color: #38bdf8; word-break: break-all; }
-.config-row .cval {
-  flex: 1; padding: 6px 8px; border: 1px solid #475569; border-radius: 4px;
-  background: #0f172a; color: #e2e8f0; font-size: 13px; outline: none;
-}
-.config-row .cval:focus { border-color: #38bdf8; box-shadow: 0 0 0 1px #38bdf8; }
+#config-raw-area-wrap { flex: 1; display: flex; flex-direction: column; }
+.config-raw { flex: 1; background: #0f172a; color: #e2e8f0; border: 1px solid #475569; border-radius: 4px; padding: 10px; font-family: 'Consolas','Monaco','Courier New',monospace; font-size: 12px; resize: vertical; outline: none; min-height: 200px; }
+.config-raw:focus { border-color: #38bdf8; }
+#config-raw-area-wrap.hidden { display: none; }
+#config-raw-area-wrap { display: flex; }
 .notice { padding: 12px; background: #1e293b; border: 1px solid #334155; border-radius: 6px; text-align: center; color: #94a3b8; }
 
 .console-controls { display: flex; gap: 8px; margin-bottom: 8px; }

@@ -154,41 +154,27 @@ function fmtSize(s) {
 
 // ── Config ──
 function loadConfig() {
-  var list = byId('config-list');
-  var editor = byId('config-editor');
+  var rawArea = byId('config-raw-area');
+  var rawWrap = byId('config-raw-area-wrap');
   var notice = byId('config-notice');
   fetch(API + '/api/config').then(function(r) { return r.json(); }).then(function(d) {
     if (d.error) { showNotif(d.error, 'error'); return; }
     if (!d.exists) {
-      editor.classList.add('hidden');
+      rawWrap.classList.add('hidden');
       notice.classList.remove('hidden');
       return;
     }
     notice.classList.add('hidden');
-    editor.classList.remove('hidden');
-    list.innerHTML = '';
-    var keys = Object.keys(d.properties);
-    if (keys.length === 0) {
-      list.innerHTML = '<div class="dim">All settings are commented out. Uncomment and set values, then save.</div>';
-      return;
-    }
-    keys.forEach(function(k) {
-      var row = document.createElement('div');
-      row.className = 'config-row';
-      row.innerHTML = '<span class="ckey">' + escapeHtml(k) + '</span><input class="cval" data-key="' + escapeAttr(k) + '" value="' + escapeAttr(d.properties[k]) + '">';
-      list.appendChild(row);
-    });
+    rawWrap.classList.remove('hidden');
+    rawArea.value = (d.raw || []).join('\n');
   }).catch(function(e) { showNotif('Failed to load config: ' + e.message, 'error'); });
 }
 
-byId('btn-save-config').addEventListener('click', function() {
-  var props = {};
-  qsa('.cval').forEach(function(inp) {
-    props[inp.dataset.key] = inp.value;
-  });
-  fetch(API + '/api/config', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(props)})
+byId('btn-save-raw').addEventListener('click', function() {
+  var raw = byId('config-raw-area').value;
+  fetch(API + '/api/config', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({_raw: raw})})
     .then(function(r) { return r.json(); }).then(function(d) {
-    if (d.success) showNotif('Configuration saved', 'success');
+    if (d.success) { showNotif('Configuration saved', 'success'); loadConfig(); }
     else showNotif(d.error, 'error');
   }).catch(function(e) { showNotif(e.message, 'error'); });
 });
@@ -208,9 +194,11 @@ byId('btn-clear-output').addEventListener('click', function() {
   byId('output-box').innerHTML = '';
 });
 
+var _outputErrorCount = 0;
+
 function appendOutput(lines) {
   var el = byId('output-box');
-  var wasEmpty = el.textContent.trim() === '' || el.textContent === 'Waiting for server output...';
+  var wasEmpty = el.textContent.trim() === '' || el.textContent === 'Waiting for server output...' || el.textContent === 'Server not running. Start the server to see output.' || el.textContent.indexOf('Output unavailable') !== -1;
   if (wasEmpty) el.innerHTML = '';
   lines.forEach(function(l) {
     var d = document.createElement('div');
@@ -222,13 +210,26 @@ function appendOutput(lines) {
 
 function startOutputPoll() {
   stopOutputPoll();
+  _outputErrorCount = 0;
   _outputTimer = setInterval(function() {
     fetch(API + '/api/output?lines=50').then(function(r) { return r.json(); }).then(function(d) {
+      _outputErrorCount = 0;
       if (d.lines && d.lines.length > 0) appendOutput(d.lines);
-    }).catch(function() {});
+    }).catch(function() {
+      _outputErrorCount++;
+      if (_outputErrorCount === 1) {
+        byId('output-box').innerHTML = '<span class="dim">Output unavailable — check if the server is running.</span>';
+      }
+    });
   }, 2000);
-  fetch(API + '/api/output?lines=50').then(function(r) { return r.json(); }).then(function(d) {
-    if (d.lines) appendOutput(d.lines);
+  fetch(API + '/api/status').then(function(r) { return r.json(); }).then(function(d) {
+    if (!d.running) {
+      byId('output-box').innerHTML = '<span class="dim">Server not running. Start the server to see output.</span>';
+    } else {
+      fetch(API + '/api/output?lines=50').then(function(r) { return r.json(); }).then(function(d2) {
+        if (d2.lines) appendOutput(d2.lines);
+      }).catch(function() {});
+    }
   }).catch(function() {});
 }
 
