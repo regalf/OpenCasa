@@ -17,7 +17,7 @@ a { color: #38bdf8; }
 .tab-content.active { display: block; }
 #tab-config.active { flex: 1; display: flex; flex-direction: column; }
 #tab-output.active { flex: 1; display: flex; flex-direction: column; }
-#tab-output.active #output-box { flex: 1; }
+#tab-output.active #output-box { max-height: 320px; overflow-y: auto; }
 
 .notif { padding: 8px 12px; border-radius: 6px; margin-bottom: 12px; font-size: 13px; }
 .notif.error { background: #3e1515; color: #fca5a5; border: 1px solid #5c2020; }
