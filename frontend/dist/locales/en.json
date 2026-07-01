@@ -135,6 +135,13 @@
   "cp.delete": "Delete",
   "cp.delete_confirm": "Delete user %s?",
   "cp.you": "(you)",
+  "cp.admin": "Admin",
+  "cp.regular": "Regular",
+  "cp.promote": "Promote",
+  "cp.demote": "Demote",
+  "cp.protected": "Protected",
+  "cp.cannot_demote_self": "Cannot demote self",
+  "setup.make_admin": "Make this user an administrator (can manage users and updates)",
 
   "error.unauthorized": "Unauthorized",
   "error.unknown": "Unknown error",

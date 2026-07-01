@@ -26,6 +26,7 @@ let state = {
   view: 'dashboard',
   loggedIn: !!token,
   isRoot: false,
+  isAdmin: false,
   username: '',
   stats: null,
   storage: null,
@@ -127,7 +128,7 @@ async function doSetup() {
     const res = await fetch(BASE + '/setup', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({username: user, password: pass}),
+      body: JSON.stringify({username: user, password: pass, role: document.getElementById('setup-admin').checked ? 'admin' : 'regular'}),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({error: t('error.failed')}));
@@ -191,6 +192,7 @@ async function login() {
     localStorage.setItem('token', token);
     state.loggedIn = true;
     state.isRoot = res.is_root || false;
+    state.isAdmin = res.is_admin || res.is_root || false;
     state.username = res.user || user;
     state.avatar = state.loginAvatar || '';
     state.error = '';
@@ -206,7 +208,7 @@ async function login() {
 
 function logout() {
   token = null; localStorage.removeItem('token');
-  state.loggedIn = false; state.isRoot = false; state.username = '';
+  state.loggedIn = false; state.isRoot = false; state.isAdmin = false; state.username = '';
   render();
 }
 
@@ -886,6 +888,7 @@ async function loadUsers() {
   try {
     const res = await api('GET', '/users');
     state.users = res.users || [];
+    state.firstAdmin = res.first_admin || null;
   } catch(e) { state.error = e.message; }
   render();
 }
@@ -893,11 +896,12 @@ async function loadUsers() {
 async function createUser() {
   const user = document.getElementById('cp-user').value.trim();
   const pass = document.getElementById('cp-pass').value;
+  const role = document.getElementById('cp-role').value;
   const errEl = document.getElementById('cp-error');
   if (!user || !pass) { errEl.textContent = t('setup.fill_all'); return; }
   if (pass.length < 4) { errEl.textContent = t('setup.pass_short'); return; }
   try {
-    await api('POST', '/users', { username: user, password: pass });
+    await api('POST', '/users', { username: user, password: pass, role: role });
     document.getElementById('cp-user').value = '';
     document.getElementById('cp-pass').value = '';
     errEl.textContent = '';
@@ -909,6 +913,13 @@ async function deleteUser(username) {
   if (!confirm(t('cp.delete_confirm', username))) return;
   try {
     await api('POST', '/users/' + encodeURIComponent(username) + '/delete');
+    loadUsers();
+  } catch(e) { state.error = e.message; render(); }
+}
+
+async function changeRole(username, role) {
+  try {
+    await api('POST', '/users/' + encodeURIComponent(username) + '/role', { role: role });
     loadUsers();
   } catch(e) { state.error = e.message; render(); }
 }
@@ -1179,7 +1190,7 @@ function render() {
       <button class="${state.view==='dashboard'?'active':''}" onclick="navigate('dashboard')">${t('nav.dashboard')}</button>
       <button class="${state.view==='files'?'active':''}" onclick="navigate('files')">${t('nav.files')}</button>
       <button class="${state.view==='apps'?'active':''}" onclick="navigate('apps')">${t('nav.apps')}</button>
-      ${state.isRoot ? `
+      ${state.isAdmin ? `
       <button class="${state.view==='controlpanel'?'active':''}" onclick="navigate('controlpanel')">${t('nav.control_panel')}</button>
       ` : ''}
       ${webApps.length > 0 ? `
@@ -1192,7 +1203,7 @@ function render() {
       `).join('')}
       ` : ''}
       <div class="spacer"></div>
-      ${state.isRoot ? `
+      ${state.isAdmin ? `
       <div class="upd-wrap">
         <button class="sidebar-upd-btn" onclick="event.stopPropagation();toggleUpdatePanel()">
           <span style="font-size:1.1rem">&#x21BB;</span>
@@ -1236,6 +1247,10 @@ function renderSetup() {
           <input id="setup-user" placeholder="${t('setup.username')}" autofocus onkeydown="if(event.key==='Enter') document.getElementById('setup-pass').focus()" />
           <input id="setup-pass" type="password" placeholder="${t('setup.password')}" onkeydown="if(event.key==='Enter') document.getElementById('setup-conf').focus()" />
           <input id="setup-conf" type="password" placeholder="${t('setup.confirm')}" onkeydown="if(event.key==='Enter') doSetup()" />
+          <label style="display:flex;align-items:center;gap:.5rem;margin-top:.75rem;font-size:.9rem;color:#94a3b8">
+            <input type="checkbox" id="setup-admin" />
+            ${t('setup.make_admin')}
+          </label>
         </div>
         <p class="login-error" id="setup-error"></p>
         <button onclick="doSetup()" ${state.setupLoading ? 'disabled' : ''}>
@@ -1646,7 +1661,11 @@ function renderControlPanel() {
         <h3>${t('cp.create_user')}</h3>
         <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:flex-end">
           <input id="cp-user" placeholder="${t('setup.username')}" style="flex:1;min-width:140px" onkeydown="if(event.key==='Enter') document.getElementById('cp-pass').focus()" />
-          <input id="cp-pass" type="password" placeholder="${t('setup.password')}" style="flex:1;min-width:140px" onkeydown="if(event.key==='Enter') createUser()" />
+          <input id="cp-pass" type="password" placeholder="${t('setup.password')}" style="flex:1;min-width:140px" onkeydown="if(event.key==='Enter') document.getElementById('cp-role').focus()" />
+          <select id="cp-role" style="padding:8px;border-radius:6px;border:1px solid #475569;background:#1e293b;color:#e2e8f0;font-size:13px">
+            <option value="regular">${t('cp.regular')}</option>
+            <option value="admin">${t('cp.admin')}</option>
+          </select>
           <button class="btn btn-success" onclick="createUser()">${t('cp.add')}</button>
         </div>
         <p class="login-error" id="cp-error"></p>
@@ -1663,8 +1682,13 @@ function renderControlPanel() {
               <td>${escapeHtml(u.username)}</td>
               <td>${escapeHtml(u.role)}</td>
               <td>${u.created ? new Date(u.created*1000).toLocaleDateString() : t('common.na')}</td>
-              <td>
-                ${state.username !== u.username ? `<button class="btn btn-danger" onclick="deleteUser('${escapeHtml(u.username)}')">${t('cp.delete')}</button>` : `<span class="dim">${t('cp.you')}</span>`}
+              <td style="display:flex;gap:.25rem;align-items:center;flex-wrap:wrap">
+                ${state.username === u.username ? `<span class="dim" style="font-size:.8rem">${t('cp.you')}</span>` : ''}
+                ${u.role === 'regular' && (!state.firstAdmin || u.username !== state.firstAdmin) ? `<button class="btn btn-sm" onclick="changeRole('${escapeHtml(u.username)}','admin')">${t('cp.promote')}</button>` : ''}
+                ${u.role === 'admin' && state.username !== u.username && (!state.firstAdmin || u.username !== state.firstAdmin) ? `<button class="btn btn-sm" onclick="changeRole('${escapeHtml(u.username)}','regular')">${t('cp.demote')}</button>` : ''}
+                ${u.role === 'admin' && state.username === u.username ? `<span class="dim" style="font-size:.8rem">${t('cp.cannot_demote_self')}</span>` : ''}
+                ${u.role === 'admin' && u.username === state.firstAdmin ? `<span class="dim" style="font-size:.8rem">${t('cp.protected')}</span>` : ''}
+                ${state.username !== u.username ? `<button class="btn btn-danger btn-sm" onclick="deleteUser('${escapeHtml(u.username)}')">${t('cp.delete')}</button>` : ''}
               </td>
             </tr>`).join('')}
           </tbody>
@@ -1995,6 +2019,7 @@ loadLocale('en').then(async () => {
       if (c.ok) {
         const j = await c.json();
         state.isRoot = j.is_root || false;
+        state.isAdmin = j.is_admin || j.is_root || false;
         state.username = j.user || '';
         state.avatar = j.avatar || '';
         state.loggedIn = true;
@@ -2040,6 +2065,7 @@ window.uninstallApp = uninstallApp;
 window.openApp = openApp;
 window.createUser = createUser;
 window.deleteUser = deleteUser;
+window.changeRole = changeRole;
 window.checkUser = checkUser;
 window.verifyRootChange = verifyRootChange;
 window.recoverySetPassword = recoverySetPassword;

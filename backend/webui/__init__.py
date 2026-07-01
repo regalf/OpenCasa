@@ -165,6 +165,8 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
         if not config["auth"]["enabled"]:
             self._current_user = "root"
             self._is_root = True
+            self._role = "root"
+            self._is_admin = True
             return True
         payload = self._get_user()
         if not payload:
@@ -172,6 +174,8 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
             return False
         self._current_user = payload.get("username")
         self._is_root = payload.get("is_root", False)
+        self._role = payload.get("role", "regular")
+        self._is_admin = self._role in ("root", "admin")
         from .database import get as _get
         if _get("_root_tamper") == "true":
             self._send_error(403, "root_tamper")
@@ -297,16 +301,17 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
                 "ok": True,
                 "user": self._current_user,
                 "is_root": self._is_root,
+                "role": self._role,
+                "is_admin": self._is_admin,
                 "avatar": avatar,
             })
 
-        # Users list (root only)
+        # Users list (root or admin only)
         if path == "/api/v1/users" or path == "/api/v1/users/":
-            if not self._is_root:
+            if not self._is_admin:
                 return self._send_error(403, "forbidden")
-            from .auth import list_users
-            return self._send_json({"users": list_users()})
-
+            from .auth import list_users, get_first_admin
+            return self._send_json({"users": list_users(), "first_admin": get_first_admin()})
         if path == "/api/v1/files" or path == "/api/v1/files/":
             from .filemanager import handle_list_files
             return handle_list_files(self, params.get("path", "/"))
@@ -339,6 +344,7 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
             from .system import get_system_stats
             stats = get_system_stats()
             stats["is_root"] = self._is_root
+            stats["is_admin"] = self._is_admin
             stats["username"] = self._current_user or "root"
             return self._send_json(stats)
 
@@ -459,7 +465,7 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
                 with _login_lock:
                     _login_attempts.pop(ip, None)
                 from .auth import make_token
-                token = make_token(user_info["username"], user_info["is_root"])
+                token = make_token(user_info["username"], user_info["is_root"], user_info.get("role", "regular"))
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Set-Cookie", "opencasa_token=" + urllib.parse.quote(token) + "; Path=/; SameSite=Lax; HttpOnly")
@@ -471,34 +477,43 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
                     "token": token,
                     "user": user_info["username"],
                     "is_root": user_info["is_root"],
+                    "role": user_info.get("role", "regular"),
                 }).encode())
                 return
             return self._send_error(401, "invalid credentials")
 
         # First-boot setup: create first user
         if path == "/api/v1/setup":
-            from .auth import user_count, create_user
+            from .auth import user_count, create_user, set_first_admin
             if user_count() > 0:
                 return self._send_error(403, "already set up")
             data = self._json_body()
             if not data or not data.get("username") or not data.get("password"):
                 return self._send_error(400, "missing username or password")
-            ok, msg = create_user(data["username"], data["password"])
+            role = data.get("role", "regular")
+            if role not in ("admin", "regular"):
+                return self._send_error(400, "invalid role")
+            ok, msg = create_user(data["username"], data["password"], role)
             if not ok:
                 return self._send_error(409, msg)
+            if role == "admin":
+                set_first_admin(data["username"])
             return self._send_json({"success": True})
 
-        # Create user (root only)
+        # Create user (root or admin only)
         if path == "/api/v1/users" or path == "/api/v1/users/":
             if not self._check_auth():
                 return
-            if not self._is_root:
+            if not self._is_admin:
                 return self._send_error(403, "forbidden")
             data = self._json_body()
             if not data or not data.get("username") or not data.get("password"):
                 return self._send_error(400, "missing username or password")
+            role = data.get("role", "regular")
+            if role not in ("admin", "regular"):
+                return self._send_error(400, "invalid role")
             from .auth import create_user
-            ok, msg = create_user(data["username"], data["password"])
+            ok, msg = create_user(data["username"], data["password"], role)
             if not ok:
                 return self._send_error(409, msg)
             return self._send_json({"success": True})
@@ -762,7 +777,7 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
             return self._send_json({"success": True})
 
         if path == "/api/v1/system/do-update":
-            if not self._is_root:
+            if not self._is_admin:
                 return self._send_error(403, "forbidden")
             data = self._json_body() or {}
             from .updater import do_update
@@ -810,14 +825,37 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
             set("_avatar:" + self._current_user, data["avatar"])
             return self._send_json({"success": True})
 
-        # Delete user (root only)
+        # Change user role (root or admin only)
+        if path.startswith("/api/v1/users/") and path.endswith("/role"):
+            if not self._is_admin:
+                return self._send_error(403, "forbidden")
+            username = path[len("/api/v1/users/"):-len("/role")]
+            data = self._json_body()
+            if not data or "role" not in data:
+                return self._send_error(400, "missing role")
+            new_role = data["role"]
+            if new_role not in ("admin", "regular"):
+                return self._send_error(400, "invalid role")
+            from .auth import set_user_role, is_protected_admin
+            if is_protected_admin(username):
+                return self._send_error(403, "cannot change role of the first admin")
+            if username == self._current_user and new_role != "admin":
+                return self._send_error(403, "cannot demote yourself")
+            ok, msg = set_user_role(username, new_role)
+            if not ok:
+                return self._send_error(400, msg)
+            return self._send_json({"success": True})
+
+        # Delete user (root or admin only)
         if path.startswith("/api/v1/users/") and path.endswith("/delete"):
-            if not self._is_root:
+            if not self._is_admin:
                 return self._send_error(403, "forbidden")
             username = path[len("/api/v1/users/"):-len("/delete")]
             if username == self._current_user:
                 return self._send_error(400, "cannot delete yourself")
-            from .auth import delete_user
+            from .auth import delete_user, is_protected_admin
+            if is_protected_admin(username) and self._role != "root":
+                return self._send_error(403, "cannot delete the first admin")
             delete_user(username)
             return self._send_json({"success": True})
 

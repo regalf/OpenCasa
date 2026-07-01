@@ -135,6 +135,13 @@
   "cp.delete": "Elimina",
   "cp.delete_confirm": "Eliminare l'utente %s?",
   "cp.you": "(tu)",
+  "cp.admin": "Amministratore",
+  "cp.regular": "Normale",
+  "cp.promote": "Promuovi",
+  "cp.demote": "Retrocedi",
+  "cp.protected": "Protetto",
+  "cp.cannot_demote_self": "Non puoi retrocederti",
+  "setup.make_admin": "Rendi questo utente amministratore (puo' gestire utenti e aggiornamenti)",
 
   "error.unauthorized": "Non autorizzato",
   "error.unknown": "Errore sconosciuto",
