@@ -106,7 +106,16 @@ def create_user(username, password, role="regular"):
 
 def delete_user(username):
     from . import database as dbmod
-    dbmod.delete("_user:" + username)
+    user_prefix = "_user:" + username
+    dbmod.delete(user_prefix)
+    # Clean up user-scoped keys
+    for key in dbmod.list_keys():
+        if key.startswith("_notifications:" + username) or \
+           key.startswith("_avatar:" + username) or \
+           key.startswith("_pref:" + username + ":") or \
+           key.startswith("_app_perm_state:" + username + ":") or \
+           key.startswith("_app_limits:" + username + ":"):
+            dbmod.delete(key)
 
 
 def list_users():
