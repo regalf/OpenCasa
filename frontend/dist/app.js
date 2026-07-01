@@ -1663,7 +1663,7 @@ function renderControlPanel() {
         <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:flex-end">
           <input id="cp-user" placeholder="${t('setup.username')}" style="flex:1;min-width:140px" onkeydown="if(event.key==='Enter') document.getElementById('cp-pass').focus()" />
           <input id="cp-pass" type="password" placeholder="${t('setup.password')}" style="flex:1;min-width:140px" onkeydown="if(event.key==='Enter') document.getElementById('cp-role').focus()" />
-          <select id="cp-role" style="padding:8px;border-radius:6px;border:1px solid #475569;background:#1e293b;color:#e2e8f0;font-size:13px">
+          <select id="cp-role" style="padding:.5rem;border-radius:5px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:.9rem;flex:1;min-width:140px">
             <option value="regular">${t('cp.regular')}</option>
             <option value="admin">${t('cp.admin')}</option>
           </select>
