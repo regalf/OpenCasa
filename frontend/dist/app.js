@@ -123,12 +123,13 @@ async function doSetup() {
   if (!user || !pass) { errEl.textContent = t('setup.fill_all'); return; }
   if (pass !== conf) { errEl.textContent = t('setup.pass_mismatch'); return; }
   if (pass.length < 4) { errEl.textContent = t('setup.pass_short'); return; }
+  const isAdmin = document.getElementById('setup-admin').checked;
   state.setupLoading = true; render();
   try {
     const res = await fetch(BASE + '/setup', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({username: user, password: pass, role: document.getElementById('setup-admin').checked ? 'admin' : 'regular'}),
+      body: JSON.stringify({username: user, password: pass, role: isAdmin ? 'admin' : 'regular'}),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({error: t('error.failed')}));
