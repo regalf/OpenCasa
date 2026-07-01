@@ -174,8 +174,13 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
             return False
         self._current_user = payload.get("username")
         self._is_root = payload.get("is_root", False)
-        self._role = payload.get("role", "regular")
-        self._is_admin = self._is_root or self._role in ("root", "admin")
+        if self._is_root:
+            self._role = "root"
+            self._is_admin = True
+        else:
+            from .auth import get_user_role
+            self._role = get_user_role(self._current_user) or "regular"
+            self._is_admin = self._role == "admin"
         from .database import get as _get
         if _get("_root_tamper") == "true":
             self._send_error(403, "root_tamper")

@@ -94,7 +94,7 @@ def verify_password(password, stored):
         return False
 
 
-def create_user(username, password, role="user"):
+def create_user(username, password, role="regular"):
     from . import database as dbmod
     key = "_user:" + username
     if dbmod.get(key):
@@ -115,7 +115,7 @@ def list_users():
     users = []
     for k in keys:
         data = json.loads(dbmod.get(k))
-        users.append({"username": k[6:], "role": data.get("role", "user"), "created": data.get("created", 0)})
+        users.append({"username": k[6:], "role": data.get("role", "regular"), "created": data.get("created", 0)})
     return users
 
 
