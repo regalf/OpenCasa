@@ -141,7 +141,7 @@
   "cp.demote": "Retrocedi",
   "cp.protected": "Protetto",
   "cp.cannot_demote_self": "Non puoi retrocederti",
-  "setup.make_admin": "Rendi questo utente amministratore (puo' gestire utenti e aggiornamenti)",
+  "setup.make_admin": "Crea amministratore",
 
   "error.unauthorized": "Non autorizzato",
   "error.unknown": "Errore sconosciuto",

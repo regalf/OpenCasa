@@ -141,7 +141,7 @@
   "cp.demote": "Demote",
   "cp.protected": "Protected",
   "cp.cannot_demote_self": "Cannot demote self",
-  "setup.make_admin": "Make this user an administrator (can manage users and updates)",
+  "setup.make_admin": "Create admin",
 
   "error.unauthorized": "Unauthorized",
   "error.unknown": "Unknown error",
