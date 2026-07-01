@@ -175,7 +175,7 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
         self._current_user = payload.get("username")
         self._is_root = payload.get("is_root", False)
         self._role = payload.get("role", "regular")
-        self._is_admin = self._role in ("root", "admin")
+        self._is_admin = self._is_root or self._role in ("root", "admin")
         from .database import get as _get
         if _get("_root_tamper") == "true":
             self._send_error(403, "root_tamper")
@@ -473,11 +473,14 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
                 self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
                 self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
                 self.end_headers()
+                is_root = user_info["is_root"]
+                role = user_info.get("role", "regular")
                 self._write(json.dumps({
                     "token": token,
                     "user": user_info["username"],
-                    "is_root": user_info["is_root"],
-                    "role": user_info.get("role", "regular"),
+                    "is_root": is_root,
+                    "role": role,
+                    "is_admin": is_root or role in ("root", "admin"),
                 }).encode())
                 return
             return self._send_error(401, "invalid credentials")
