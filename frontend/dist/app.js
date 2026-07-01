@@ -1248,7 +1248,7 @@ function renderSetup() {
           <input id="setup-user" placeholder="${t('setup.username')}" autofocus onkeydown="if(event.key==='Enter') document.getElementById('setup-pass').focus()" />
           <input id="setup-pass" type="password" placeholder="${t('setup.password')}" onkeydown="if(event.key==='Enter') document.getElementById('setup-conf').focus()" />
           <input id="setup-conf" type="password" placeholder="${t('setup.confirm')}" onkeydown="if(event.key==='Enter') doSetup()" />
-          <label style="display:flex;align-items:center;gap:.5rem;margin-top:.75rem;font-size:.9rem;color:#94a3b8">
+          <label style="display:flex;align-items:center;gap:.5rem;margin-top:.75rem;font-size:.9rem;color:#94a3b8;white-space:nowrap">
             <input type="checkbox" id="setup-admin" />
             ${t('setup.make_admin')}
           </label>
