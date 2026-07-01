@@ -520,10 +520,12 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
             role = data.get("role", "regular")
             if role not in ("admin", "regular"):
                 return self._send_error(400, "invalid role")
-            from .auth import create_user
+            from .auth import create_user, set_first_admin, get_first_admin
             ok, msg = create_user(data["username"], data["password"], role)
             if not ok:
                 return self._send_error(409, msg)
+            if role == "admin" and not get_first_admin():
+                set_first_admin(data["username"])
             return self._send_json({"success": True})
 
         # Proxy POST skips auth
@@ -844,7 +846,7 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
             new_role = data["role"]
             if new_role not in ("admin", "regular"):
                 return self._send_error(400, "invalid role")
-            from .auth import set_user_role, is_protected_admin
+            from .auth import set_user_role, is_protected_admin, get_first_admin, set_first_admin
             if is_protected_admin(username):
                 return self._send_error(403, "cannot change role of the first admin")
             if username == self._current_user and new_role != "admin":
@@ -852,6 +854,8 @@ class OpenCasaHandler(BaseHTTPRequestHandler):
             ok, msg = set_user_role(username, new_role)
             if not ok:
                 return self._send_error(400, msg)
+            if new_role == "admin" and not get_first_admin():
+                set_first_admin(username)
             return self._send_json({"success": True})
 
         # Delete user (root or admin only)

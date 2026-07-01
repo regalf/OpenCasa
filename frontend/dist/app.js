@@ -1689,7 +1689,7 @@ function renderControlPanel() {
                 ${u.role === 'admin' && state.username !== u.username && (!state.firstAdmin || u.username !== state.firstAdmin) ? `<button class="btn btn-sm" onclick="changeRole('${escapeHtml(u.username)}','regular')">${t('cp.demote')}</button>` : ''}
                 ${u.role === 'admin' && state.username === u.username ? `<span class="dim" style="font-size:.8rem">${t('cp.cannot_demote_self')}</span>` : ''}
                 ${u.role === 'admin' && u.username === state.firstAdmin ? `<span class="dim" style="font-size:.8rem">${t('cp.protected')}</span>` : ''}
-                ${state.username !== u.username ? `<button class="btn btn-danger btn-sm" onclick="deleteUser('${escapeHtml(u.username)}')">${t('cp.delete')}</button>` : ''}
+                ${state.username !== u.username && (!state.firstAdmin || u.username !== state.firstAdmin || state.isRoot) ? `<button class="btn btn-danger btn-sm" onclick="deleteUser('${escapeHtml(u.username)}')">${t('cp.delete')}</button>` : ''}
               </td>
             </tr>`).join('')}
           </tbody>
